@@ -84,7 +84,18 @@ def check_cuda():
 
 def check_mujoco(steps, render):
     """复用部署代码，运行模型加载、策略推理和 PD 控制闭环。"""
-    os.environ.setdefault("MUJOCO_GL", "egl")
+    if render:
+        # 只有显式请求截图才加载图形后端，允许调用方选择 OSMesa 等后端。
+        os.environ.setdefault("MUJOCO_GL", "egl")
+        backend = os.environ["MUJOCO_GL"].strip().lower()
+        if backend in {"disable", "disabled", "off", "false", "0"}:
+            raise RuntimeError(
+                "--render 需要图形后端。请设置 MUJOCO_GL=egl 或 osmesa；"
+                "仅验证物理仿真时请移除 --render。"
+            )
+    else:
+        # 纯物理检查不需要 EGL；也覆盖 shell 中遗留的 EGL 后端设置。
+        os.environ["MUJOCO_GL"] = "disable"
     os.environ.setdefault("PYGAME_HIDE_SUPPORT_PROMPT", "1")
     sys.path.insert(0, str(ROOT / "deploy" / "deploy_mujoco"))
     import mujoco
@@ -155,6 +166,8 @@ def check_mujoco(steps, render):
         "scene": str(cfg.xml_path),
         "displacement_m": (data.qpos[:3] - start_position).tolist(),
         "minimum_base_height_m": min_height,
+        "render_requested": render,
+        "graphics_backend": os.environ["MUJOCO_GL"],
     }
     if render:
         with mujoco.Renderer(model, height=240, width=320) as renderer:
@@ -183,7 +196,10 @@ def main():
         default=["packages", "cuda", "mujoco"],
     )
     parser.add_argument("--steps", type=int, default=1000)
-    parser.add_argument("--render", action="store_true")
+    parser.add_argument(
+        "--render", action="store_true",
+        help="额外验证离屏截图；默认只验证不依赖 EGL 的物理与策略闭环。",
+    )
     parser.add_argument(
         "--report", type=Path,
         default=ROOT / "logs/environment/smoke-results.json",

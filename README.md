@@ -161,13 +161,25 @@ pip install mujoco==3.4.0 pygame==2.6.1
 ### 4. 环境测试（Conda / RTX 4060 8GB）
 
 激活环境后运行依赖检查、CUDA 前向与反向计算，以及预训练 Go2
-策略的 1000 步 MuJoCo 闭环和渲染测试：
+策略的 1000 步 MuJoCo 闭环。默认不加载 EGL，不要求服务器提供图形库：
 
 ```bash
 conda activate go2_rl_robotlab
-python scripts/check_environment.py --render
+python scripts/check_environment.py
 python -m pytest source/rsl_rl/tests -q
 ```
+
+已配置 EGL 或 OSMesa 且需要验证截图时，再额外运行：
+
+```bash
+MUJOCO_GL=egl python scripts/check_environment.py --checks mujoco --render
+```
+
+`'NoneType' object has no attribute 'eglQueryString'` 表示 EGL 图形库加载
+失败；纯物理检查可使用 `MUJOCO_GL=disable`，并移除 `--render`。
+CUDA 检查通过只证明 PyTorch GPU 计算可用。当前 Isaac Sim 5.1 官方
+不支持没有 RT 核心的 A100/H100，服务器训练还需单独核对
+[Isaac Sim 硬件要求](https://docs.isaacsim.omniverse.nvidia.com/5.1.0/installation/requirements.html)。
 
 检查结果和渲染图保存在 `logs/environment/`。针对 8GB 显存，
 先使用 4 个并行环境和较小地形验证一轮训练，再逐步增加环境数量：

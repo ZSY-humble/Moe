@@ -22,6 +22,11 @@ python scripts/rsl_rl/train.py \
 在本机 RTX 4060 Laptop 8 GB 上验证；需要为其他图形程序保留更多
 显存时可使用 `--num_envs 128`。日志在 `logs/rsl_rl/race_moe_cts/`。
 
+服务器需先核对显卡型号。当前 Isaac Sim 5.1 官方不支持没有 RT 核心的
+A100/H100；PyTorch CUDA 或 MuJoCo 无渲染检查通过，不代表 IsaacLab
+训练后端已验证可用。无窗口 `--headless` 也不能作为硬件兼容性的保证。
+参见 [Isaac Sim 硬件要求](https://docs.isaacsim.omniverse.nvidia.com/5.1.0/installation/requirements.html)。
+
 先训练平地时改用 `--task RobotLab-Race-Flat-v0`，日志在
 `logs/rsl_rl/race_flat_moe_cts/`。平地和粗糙地形使用相同网络接口，
 可以先学平地再继续训练粗糙地形。
