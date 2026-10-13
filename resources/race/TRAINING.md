@@ -171,3 +171,31 @@ python scripts/tools/check_race_training.py --headless --device cuda:0
 TorchScript／ONNX 导出与 MuJoCo 闭环。短训练检查点用于证明流程
 完整，不作为已收敛步态发布。当前 RoboGauge 接口仍绑定 Go2 评估模型，
 Race 任务使用本地回放和 MuJoCo 验证。
+
+## 零位与用户 PD 参数实验
+
+当前默认控制配置改为零位实验：12 个目标角均为 0 rad，
+每腿 Kp 为 `[24, 40, 32]`、Kd 为 `[0.6, 0.8, 0.7]`。
+初始名义高度和高度奖励目标共同读取 `race.yaml` 的高度 `0.321 m`，
+这是按零位最低足球距地 5 mm 计算后取整的释放高度，不固定浮动基座。
+复位时仍保留原有高度、角度和速度随机化；目标高度不会随随机扰动改变。
+原默认配置保存在 `deploy/deploy_mujoco/configs/race_pre_zero.yaml`。
+模型碰撞体、惯量、电机限幅、被动项和奖励项数量保持原样。
+
+在服务器的项目根目录、原 Conda 环境中分别从头启动：
+
+```bash
+bash scripts/tools/train_race_zero.sh flat
+# 停止平地任务后启动复杂地形，两个任务避免同时占用 GPU 0。
+bash scripts/tools/train_race_zero.sh rough
+```
+
+两版均为 GPU 0、4096 环境、10000 轮，使用 nohup 和无缓冲输出，
+每 100 轮保存；平地权重在 `logs/rsl_rl/race_flat_moe_cts/`，
+复杂地形权重在 `logs/rsl_rl/race_moe_cts/`，运行名称包含 `race_zero`。
+不使用旧姿态权重续训。旧权重 MuJoCo 回放需显式指定旧配置
+`--config deploy/deploy_mujoco/configs/race_pre_zero.yaml`，避免控制参数混用。
+
+这组零位参数的 MuJoCo 60 秒测试：最终高度约 0.2335 m，
+倾斜约 14.8 度；末两秒四脚接触，承重约 15.4/15.6/55.7/55.2 N，
+存在非足端触地。它是用户指定的训练对比版本，不能视为稳定站姿认证。

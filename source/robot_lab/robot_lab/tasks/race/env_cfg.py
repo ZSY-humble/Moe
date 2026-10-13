@@ -19,7 +19,7 @@ from isaaclab.terrains import TerrainGeneratorCfg, TerrainImporterCfg
 from isaaclab.utils import configclass
 from isaaclab.utils.noise import AdditiveUniformNoiseCfg as Unoise
 
-from robot_lab.assets.race import RACE_CFG
+from robot_lab.assets.race import RACE_CFG, RACE_CONTROL
 from robot_lab.tasks.race import mdp
 
 
@@ -32,7 +32,8 @@ JOINT_NAMES = [
 FOOT_NAMES = [f"pitch03_leg_{leg}_link" for leg in ("f_l", "f_r", "b_l", "b_r")]
 BASE_LINK_NAME = "base_link"
 FOOT_LINK_NAME = "pitch03_leg_[fb]_[lr]_link"
-BASE_HEIGHT_TARGET = 0.33
+# 初始名义高度与高度奖励共用控制配置，避免分别修改后不一致。
+BASE_HEIGHT_TARGET = float(RACE_CONTROL["base_init_pos"][2])
 
 # 此处仅定义地形；Race URDF 内的 26 个简化碰撞体保持原样。
 RACE_TERRAIN_CFG = TerrainGeneratorCfg(
