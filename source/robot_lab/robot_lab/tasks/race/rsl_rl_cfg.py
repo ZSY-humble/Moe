@@ -9,7 +9,7 @@ from robot_lab.tasks.go2.rsl_rl_cfg import MoECTSRunnerCfg
 class RaceMoECTSRunnerCfg(MoECTSRunnerCfg):
     experiment_name = "race_moe_cts"
     max_iterations = 10000
-    save_interval = 100
+    save_interval = 250
     clip_actions = 100.0
     obs_groups = {"policy": ["policy"], "critic": ["critic"]}
 

@@ -18,7 +18,7 @@ python scripts/rsl_rl/train.py \
     --num_envs 256 --logger tensorboard --run_name race_train
 ```
 
-默认训练 10,000 轮，每 100 轮和结束时保存检查点。256 个并行环境已
+默认训练 10,000 轮，每 250 轮和结束时保存检查点。256 个并行环境已
 在本机 RTX 4060 Laptop 8 GB 上验证；需要为其他图形程序保留更多
 显存时可使用 `--num_envs 128`。日志在 `logs/rsl_rl/race_moe_cts/`。
 
@@ -191,7 +191,7 @@ bash scripts/tools/train_race_zero.sh rough
 ```
 
 两版均为 GPU 0、4096 环境、10000 轮，使用 nohup 和无缓冲输出，
-每 100 轮保存；平地权重在 `logs/rsl_rl/race_flat_moe_cts/`，
+每 250 轮保存；平地权重在 `logs/rsl_rl/race_flat_moe_cts/`，
 复杂地形权重在 `logs/rsl_rl/race_moe_cts/`，运行名称包含 `race_zero`。
 不使用旧姿态权重续训。旧权重 MuJoCo 回放需显式指定旧配置
 `--config deploy/deploy_mujoco/configs/race_pre_zero.yaml`，避免控制参数混用。
