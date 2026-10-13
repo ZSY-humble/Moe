@@ -199,3 +199,44 @@ bash scripts/tools/train_race_zero.sh rough
 这组零位参数的 MuJoCo 60 秒测试：最终高度约 0.2335 m，
 倾斜约 14.8 度；末两秒四脚接触，承重约 15.4/15.6/55.7/55.2 N，
 存在非足端触地。它是用户指定的训练对比版本，不能视为稳定站姿认证。
+
+## 原 Go2 代码对照版（独立复杂地形任务）
+
+任务 `RobotLab-Race-Go2Reference-v0` 继承 `Go2EnvCfg` 和
+`MoECTSRunnerCfg`，环境及动作管理器直接使用原 `Go2Env`。
+该任务是当前仓库 Go2 代码的模型替换对照，不声称已经验证论文全部实验。
+原 Race 平地及复杂地形两版不受影响。
+
+直接保留的内容：原十级地形生成器（波浪、坡、粗糙坡、楼梯、障碍等）、
+自定义动态指令、速度和站立课程、地形升级条件、奖励权重及奖励课程、
+原随机化、25 秒回合、10 帧历史、8 专家、初始探索噪声 1.0、
+原训练器与 PPO/CTS 参数。速度课程在第 20000/50000 轮扩展范围，
+因此只训练 10000 轮不会触发扩速。
+
+执行器直接复用 `GO2_CFG_UNITREE.actuators`：名义 Kp=25、Kd=0.5，
+0～4 物理步的目标延迟（0～20 ms）、Go2HV 力矩—转速曲线与摩擦。
+未混用 Race 的 24/40/32 增益或 Race 被动项。
+该电机参数是对照实验假设，不能据此认定为 Race 实际硬件参数。
+
+明确的模型适配：Race 原碰撞体与惯量、Race 关节/连杆/足端名映射，
+用户选择的全零默认关节角、初始及目标高度 0.321 m；原远程材质换为
+本地颜色以避免服务器下载。保存间隔按用户要求为 250 轮，独立日志目录
+`logs/rsl_rl/race_go2_reference_moe_cts/`。
+注意原关节复位规则是默认角乘 0.5～1.5，零默认角的乘法扰动仍为零；
+电机零位偏置 ±0.035 rad 和其他随机化仍生效。
+
+从头启动示例（选定物理 GPU 0，避免与另外两版冲突）：
+
+```bash
+mkdir -p logs/nohup
+nohup env CUDA_VISIBLE_DEVICES=0 PYTHONUNBUFFERED=1 OMNI_KIT_ACCEPT_EULA=YES \
+  python -u scripts/rsl_rl/train.py \
+  --task RobotLab-Race-Go2Reference-v0 --headless --device cuda:0 \
+  --num_envs 4096 --max_iterations 60000 --logger tensorboard \
+  --run_name race_go2_reference_gpu0_4096 \
+  > logs/nohup/race_go2_reference_gpu0.log 2>&1 < /dev/null &
+```
+
+此版本的检查点不能用旧 Race 固定限幅执行器进行等价回放；当前
+Race MuJoCo 导出合同也不支持该延迟和转速曲线。需单独适配回放，
+不可把原 Race 的 deployment.json 复制用于此版本。
