@@ -1,0 +1,37 @@
+{
+  "policy_id": "RaceFlatWalkingPhysicalDRV1",
+  "actor_observation": "phase",
+  "actor_observation_dim": 48,
+  "actor_observation_order": [
+    "phase_2",
+    "static_1",
+    "gyro_3",
+    "projected_gravity_3",
+    "joint_position_error_12",
+    "joint_velocity_12",
+    "last_action_12",
+    "command_vx_vy_yaw_3"
+  ],
+  "action_dim": 12,
+  "action_equation": "q_target = q_default + 0.25 * action",
+  "policy_dt_s": 0.02,
+  "pd_dt_s": 0.005,
+  "gait_cycle_s": 0.5,
+  "kp_per_leg": [38.0, 60.0, 64.0],
+  "kd_per_leg": [1.15, 1.2, 1.0],
+  "torque_limit_nm_per_leg": [22.0, 22.0, 33.0],
+  "default_pose_delta_rad": {
+    "front_leg": [0.0, -0.12, 0.29],
+    "rear_leg": [0.0, -0.03, 0.25]
+  },
+  "training_command_range": {
+    "vx_mps": [-0.8, 0.8],
+    "vy_mps": [-0.6, 0.6],
+    "yaw_rps": [-0.6, 0.6]
+  },
+  "first_robot_trial_limit": {
+    "vx_mps": [-0.15, 0.15],
+    "vy_mps": [-0.1, 0.1],
+    "yaw_rps": [-0.15, 0.15]
+  }
+}

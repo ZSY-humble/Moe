@@ -11,6 +11,7 @@
 """Launch Isaac Sim Simulator first."""
 
 import argparse
+import json
 import os
 import sys
 
@@ -33,7 +34,16 @@ parser.add_argument(
     "--disable_fabric", action="store_true", default=False, help="Disable fabric and use USD I/O operations."
 )
 parser.add_argument("--num_envs", type=int, default=None, help="Number of environments to simulate.")
-parser.add_argument("--task", type=str, default=None, help="Name of the task.")
+parser.add_argument(
+    "--task", type=str, default="RobotLab-Race-v0", help="播放任务，默认 Race。"
+)
+parser.add_argument(
+    "--steps", type=int, default=0, help="播放步数，0 表示运行到关闭窗口。"
+)
+parser.add_argument(
+    "--check_export", action="store_true",
+    help="逐步核对导出 TorchScript 与 IsaacLab 策略输出，仅用于 Race。",
+)
 parser.add_argument(
     "--agent", type=str, default="rsl_rl_cfg_entry_point", help="Name of the RL agent configuration entry point."
 )
@@ -143,6 +153,19 @@ def main(env_cfg: ManagerBasedRLEnvCfg | DirectRLEnvCfg | DirectMARLEnvCfg, agen
     env_cfg.curriculum.command_levels_lin_vel = None
     env_cfg.curriculum.command_levels_ang_vel = None
 
+    if args_cli.task.startswith("RobotLab-Race"):
+        # 验证 Race 时使用名义机器人参数与默认姿态，便于对照部署。
+        env_cfg.observations.single_obs.enable_corruption = False
+        for name in vars(env_cfg.events):
+            if not name.startswith("_") and name.startswith("randomize_"):
+                setattr(env_cfg.events, name, None)
+        env_cfg.events.reset_robot_joints.params["position_range"] = (0.0, 0.0)
+        env_cfg.events.reset_robot_joints.params["velocity_range"] = (0.0, 0.0)
+        env_cfg.events.reset_base.params["pose_range"] = {}
+        env_cfg.events.reset_base.params["velocity_range"] = {}
+        env_cfg.scene.terrain.max_init_terrain_level = 0
+        env_cfg.curriculum.terrain_levels = None
+
     # specify directory for logging experiments
     log_root_path = os.path.join("logs", "rsl_rl", agent_cfg.experiment_name)
     log_root_path = os.path.abspath(log_root_path)
@@ -157,6 +180,10 @@ def main(env_cfg: ManagerBasedRLEnvCfg | DirectRLEnvCfg | DirectMARLEnvCfg, agen
         resume_path = retrieve_file_path(args_cli.checkpoint)
     else:
         resume_path = get_checkpoint_path(log_root_path, agent_cfg.load_run, agent_cfg.load_checkpoint)
+
+    if args_cli.task.startswith("RobotLab-Race"):
+        from race_checkpoint import verify_race_checkpoint
+        verify_race_checkpoint(resume_path, env_cfg)
 
     log_dir = os.path.dirname(resume_path)
 
@@ -229,29 +256,62 @@ def main(env_cfg: ManagerBasedRLEnvCfg | DirectRLEnvCfg | DirectMARLEnvCfg, agen
     if agent_cfg.class_name == "OnPolicyRunnerCTS":
         export_cts_policy_as_jit(policy_nn, actor_obs_normalizer=policy_nn.actor_obs_normalizer, single_obs_normalizer=policy_nn.single_obs_normalizer, path=export_model_dir, filename="policy.pt")
         export_cts_policy_as_onnx(policy_nn, actor_obs_normalizer=policy_nn.actor_obs_normalizer, single_obs_normalizer=policy_nn.single_obs_normalizer, path=export_model_dir, filename="policy.onnx")
+        if args_cli.task.startswith("RobotLab-Race"):
+            from race_export import write_deployment_manifest
+            write_deployment_manifest(
+                env.unwrapped, policy_nn, export_model_dir,
+                task=args_cli.task, checkpoint=resume_path,
+            )
     else:
         export_policy_as_jit(policy_nn, normalizer=normalizer, path=export_model_dir, filename="policy.pt")
         export_policy_as_onnx(policy_nn, normalizer=normalizer, path=export_model_dir, filename="policy.onnx")
 
     dt = env.unwrapped.step_dt
+    exported_policy = None
+    export_needs_reset = True
+    export_max_error = 0.0
+    if args_cli.check_export:
+        if not args_cli.task.startswith("RobotLab-Race"):
+            raise ValueError("--check_export 当前用于 Race CTS 的完整流程核对")
+        torch.set_num_threads(1)
+        exported_policy = torch.jit.load(
+            os.path.join(export_model_dir, "policy.pt"), map_location="cpu"
+        ).eval()
 
     # env.unwrapped.eye = (1.1, 3.3, 0.9)
     # reset environment
     obs = env.get_observations()
     timestep = 0
     # simulate environment
-    while simulation_app.is_running():
+    while simulation_app.is_running() and (
+        args_cli.steps <= 0 or timestep < args_cli.steps
+    ):
         start_time = time.time()
         # run everything in inference mode
         with torch.inference_mode():
             # agent stepping
             actions = policy(obs)
+            if exported_policy is not None:
+                single = obs["single_obs"][0:1].cpu()
+                if export_needs_reset:
+                    exported_policy.reset()
+                    for _ in range(exported_policy.history_len - 1):
+                        exported_policy(single)
+                exported_action = exported_policy(single)
+                error = (exported_action - actions[0:1].cpu()).abs().max().item()
+                export_max_error = max(export_max_error, error)
+                if not torch.isfinite(exported_action).all() or error > 1e-5:
+                    raise RuntimeError(f"导出策略与训练推理不一致，最大差值 {error}")
             # env stepping
             obs, _, dones, _ = env.step(actions)
+            export_needs_reset = bool(dones[0].item())
             # reset recurrent states for episodes that have terminated
             policy_nn.reset(dones)
         if args_cli.video:
             writer.append_data(env.env.render())
+        timestep += 1
+        if args_cli.video and timestep >= args_cli.video_length:
+            break
         # camera_follow(env)
 
         # time delay for real-time evaluation
@@ -261,6 +321,14 @@ def main(env_cfg: ManagerBasedRLEnvCfg | DirectRLEnvCfg | DirectMARLEnvCfg, agen
 
     # close the simulator
     env.close()
+    print(f"[INFO] 已完成 {timestep} 步策略播放；策略导出至 {export_model_dir}")
+    if exported_policy is not None:
+        result_path = os.path.join(export_model_dir, "export-check.json")
+        with open(result_path, "w", encoding="utf-8") as stream:
+            json.dump({"passed": True, "steps": timestep,
+                       "maximum_action_difference": export_max_error}, stream,
+                      ensure_ascii=False, indent=2)
+        print(f"[INFO] {timestep} 步导出一致性核对通过，最大差值 {export_max_error}")
 
     # close the video writer
     if args_cli.video:

@@ -30,7 +30,9 @@ parser.add_argument("--video", action="store_true", default=False, help="Record 
 parser.add_argument("--video_length", type=int, default=200, help="Length of the recorded video (in steps).")
 parser.add_argument("--video_interval", type=int, default=2000, help="Interval between video recordings (in steps).")
 parser.add_argument("--num_envs", type=int, default=None, help="Number of environments to simulate.")
-parser.add_argument("--task", type=str, default=None, help="Name of the task.")
+parser.add_argument(
+    "--task", type=str, default="RobotLab-Race-v0", help="训练任务，默认 Race。"
+)
 parser.add_argument(
     "--agent", type=str, default="rsl_rl_cfg_entry_point", help="Name of the RL agent configuration entry point."
 )
@@ -45,6 +47,9 @@ cli_args.add_rsl_rl_args(parser)
 # append AppLauncher cli args
 AppLauncher.add_app_launcher_args(parser)
 args_cli, hydra_args = parser.parse_known_args()
+
+if args_cli.task.startswith("RobotLab-Race") and args_cli.robogauge:
+    parser.error("当前 RoboGauge 服务使用 Go2 专用模型，Race 请使用本地回放验证。")
 
 # always enable cameras to record video
 if args_cli.video:
@@ -176,7 +181,14 @@ def main(env_cfg: ManagerBasedRLEnvCfg | DirectRLEnvCfg | DirectMARLEnvCfg, agen
 
     # save resume path before creating a new log_dir
     if agent_cfg.resume or agent_cfg.algorithm.class_name == "Distillation":
-        resume_path = get_checkpoint_path(log_root_path, agent_cfg.load_run, agent_cfg.load_checkpoint)
+        # 显式路径支持平地检查点继续训练粗糙地形。
+        if args_cli.checkpoint and os.path.isfile(args_cli.checkpoint):
+            resume_path = os.path.abspath(args_cli.checkpoint)
+        else:
+            resume_path = get_checkpoint_path(log_root_path, agent_cfg.load_run, agent_cfg.load_checkpoint)
+        if args_cli.task.startswith("RobotLab-Race"):
+            from race_checkpoint import verify_race_checkpoint
+            verify_race_checkpoint(resume_path, env_cfg)
 
     # wrap for video recording
     if args_cli.video:

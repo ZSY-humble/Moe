@@ -1,0 +1,387 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Go2 碰撞模型查看器</title>
+<style>
+  :root { color-scheme: dark; font-family: system-ui, sans-serif; }
+  * { box-sizing: border-box; }
+  body { margin: 0; background: #10151c; color: #e4eaf1; }
+  main { max-width: 1180px; margin: auto; padding: 28px 24px; }
+  header { display: flex; justify-content: space-between; gap: 16px;
+    align-items: baseline; margin-bottom: 20px; }
+  h1 { font-size: 26px; margin: 0 0 8px; font-weight: 650; }
+  p { margin: 0; color: #aab5c3; font-size: 14px; line-height: 1.6; }
+  .tag { font-size: 12px; color: #8cbbd7; letter-spacing: .07em; }
+  .toolbar { display: flex; align-items: end; flex-wrap: wrap; gap: 14px;
+    margin: 20px 0 14px; }
+  label { display: flex; flex-direction: column; gap: 7px;
+    font-size: 12px; color: #acb7c5; }
+  select, button { font: inherit; color: #e4eaf1; background: #202934;
+    border: 1px solid #374250; border-radius: 6px; padding: 9px 12px; }
+  select { min-width: 142px; }
+  button { cursor: pointer; }
+  button:hover { background: #2b3846; }
+  label.check { flex-direction: row; align-items: center; padding-bottom: 10px;
+    gap: 6px; font-size: 13px; }
+  input { accent-color: #71b8d4; }
+  .stage { position: relative; background: #141c25;
+    border: 1px solid #2b3643; border-radius: 10px; overflow: hidden; }
+  canvas { display: block; width: 100%; height: 550px; touch-action: none;
+    cursor: grab; }
+  canvas:active { cursor: grabbing; }
+  .caption { position: absolute; top: 16px; left: 18px;
+    pointer-events: none; font-size: 13px; color: #d3dce7; }
+  .caption small { display: block; margin-top: 6px; color: #94a5b7; }
+  .legend { display: flex; gap: 20px; margin: 14px 0 22px;
+    font-size: 13px; color: #bdc7d4; flex-wrap: wrap; }
+  .legend span { display: inline-flex; align-items: center; gap: 7px; }
+  .swatch { display: inline-block; width: 10px; height: 10px; }
+  .box { background: #6aa8de; }
+  .cylinder { background: #74c5ac; border-radius: 3px; }
+  .sphere { background: #e5c378; border-radius: 50%; }
+  .details { display: grid; grid-template-columns: 1fr 1.1fr; gap: 28px; }
+  .details h2 { font-size: 15px; margin: 0 0 12px; font-weight: 600; }
+  .details p { font-size: 13px; }
+  #geometry { width: 100%; font-size: 13px; }
+  #geometry-detail { margin-top: 10px; min-height: 58px; }
+  .joints { display: grid; grid-template-columns: 1fr 1fr; gap: 8px 20px;
+    font-size: 13px; color: #b9c5d2; margin-top: 12px; }
+  .joints strong { font-weight: 500; color: #e0e7ef; }
+  footer { margin-top: 22px; border-top: 1px solid #2b3643;
+    padding-top: 13px; font-size: 12px; color: #8c9baa; line-height: 1.7; }
+  code { font-family: ui-monospace, monospace; font-size: 12px; }
+  :focus-visible { outline: 2px solid #8cc6e4; outline-offset: 3px; }
+  @media (max-width: 640px) {
+    main { padding: 18px 14px; }
+    header { display: block; }
+    .tag { display: block; margin-top: 12px; }
+    .details { grid-template-columns: 1fr; gap: 20px; }
+    .toolbar { gap: 12px; }
+    select { min-width: 120px; }
+    canvas { height: 410px; }
+    h1 { font-size: 22px; }
+  }
+</style>
+</head>
+<body>
+<main>
+  <header>
+    <div>
+      <h1>宇树 Go2 · 碰撞模型</h1>
+      <p>初始关节姿态下的真实碰撞几何。拖动旋转，滚轮缩放，点击查看尺寸。</p>
+    </div>
+    <span class="tag">12 个关节 · 离线三维查看</span>
+  </header>
+  <div class="toolbar">
+    <label>模型来源
+      <select id="source">
+        <option value="mjcf">MuJoCo / MJCF</option>
+        <option value="urdf">IsaacLab / URDF</option>
+      </select>
+    </label>
+    <label>显示部位
+      <select id="part">
+        <option value="all">全部碰撞体</option>
+        <option value="body">躯干与头部</option>
+        <option value="FL">左前腿 FL</option>
+        <option value="FR">右前腿 FR</option>
+        <option value="RL">左后腿 RL</option>
+        <option value="RR">右后腿 RR</option>
+      </select>
+    </label>
+    <label>视角
+      <select id="view">
+        <option value="orbit">斜视</option>
+        <option value="front">正视（沿 X）</option>
+        <option value="side">侧视（沿 Y）</option>
+        <option value="top">俯视（沿 Z）</option>
+      </select>
+    </label>
+    <label class="check"><input id="wire" type="checkbox" checked>轮廓线</label>
+    <label class="check"><input id="ground" type="checkbox" checked>地面网格</label>
+    <button id="reset" type="button">恢复视角</button>
+  </div>
+  <div class="stage">
+    <canvas id="scene" aria-label="可旋转的 Go2 三维碰撞模型"
+      role="img">浏览器需要支持 Canvas 2D 才能展示三维模型。</canvas>
+    <div class="caption"><span id="count"></span><small id="height"></small></div>
+  </div>
+  <div class="legend">
+    <span><i class="swatch box"></i>盒体：躯干 / 大腿</span>
+    <span><i class="swatch cylinder"></i>圆柱：髋部 / 小腿 / 头部</span>
+    <span><i class="swatch sphere"></i>球体：足端 / 头部</span>
+  </div>
+  <section class="details">
+    <div>
+      <h2>碰撞体尺寸与位置</h2>
+      <label>选择碰撞体<select id="geometry"></select></label>
+      <p id="geometry-detail" aria-live="polite"></p>
+    </div>
+    <div>
+      <h2>初始关节角 · rad</h2>
+      <p>每条腿依次为髋关节、大腿关节、小腿关节。</p>
+      <div class="joints" id="joints"></div>
+    </div>
+  </section>
+  <footer>
+    <div>来源：<code id="path"></code>；姿态配置：
+      <code>deploy/deploy_mujoco/configs/go2.yaml</code></div>
+    <div>这是初始姿态的几何展示；站立动力学请运行纯 PD 查看指令。
+      MJCF 与 URDF 的尺寸和固定连杆变换分别取自各自文件。</div>
+  </footer>
+</main>
+<script id="model-data" type="application/json">{"sources":{"mjcf":{"label":"MuJoCo / MJCF","path":"resources/go2/go2.xml","geometries":[{"name":"base_box","link":"base","shape":"box","size":[0.1881,0.04675,0.057],"position":[0.0,0.0,0.57],"rotation":[1.0,0.0,0.0,0.0,1.0,0.0,0.0,0.0,1.0]},{"name":"base_cyl1","link":"base","shape":"cylinder","size":[0.05,0.045,0.0],"position":[0.285,0.0,0.58],"rotation":[1.0,0.0,0.0,0.0,1.0,0.0,0.0,0.0,1.0]},{"name":"base_sphere1","link":"base","shape":"sphere","size":[0.047,0.0,0.0],"position":[0.293,0.0,0.51],"rotation":[1.0,0.0,0.0,0.0,1.0,0.0,0.0,0.0,1.0]},{"name":"geom_11","link":"FL_hip","shape":"cylinder","size":[0.046,0.02,0.0],"position":[0.1934,0.1261003,0.5779867],"rotation":[1.0,0.0,0.0,0.0,-0.0998334,-0.9950042,0.0,0.9950042,-0.0998334]},{"name":"geom_14","link":"FL_thigh","shape":"box","size":[0.055,0.01225,0.017],"position":[0.1170016,0.1489305,0.5057055],"rotation":[-0.7173561,0.0,0.6967067,0.0695546,0.9950042,0.0716161,-0.6932261,0.0998334,-0.7137723]},{"name":"geom_17","link":"FL_calf","shape":"cylinder","size":[0.012,0.06,0.0],"position":[0.085375,0.1604049,0.3913437],"rotation":[0.6137461,0.0,-0.7895035,-0.0788188,0.9950042,-0.0612724,0.7855592,0.0998334,0.6106799]},{"name":"geom_18","link":"FL_calf","shape":"cylinder","size":[0.011,0.0325,0.0],"position":[0.1512442,0.1663525,0.3320658],"rotation":[0.7960838,0.0,-0.6051864,-0.0604178,0.9950042,-0.0794758,0.602163,0.0998334,0.7921067]},{"name":"geom_19","link":"FL_calf","shape":"cylinder","size":[0.0155,0.015,0.0],"position":[0.1674907,0.1701357,0.2943601],"rotation":[0.9855846,-0.0,-0.1691831,-0.0168901,0.9950042,-0.0983943,0.1683379,0.0998334,0.9806608]},{"name":"geom_21","link":"FL_calf","shape":"sphere","size":[0.022,0.0,0.0],"position":[0.1762918,0.1727307,0.2684974],"rotation":[0.7648422,0.0,-0.6442177,-0.0643145,0.9950042,-0.0763568,0.6409993,0.0998334,0.7610212]},{"name":"geom_24","link":"FR_hip","shape":"cylinder","size":[0.046,0.02,0.0],"position":[0.1934,-0.1261003,0.5779867],"rotation":[1.0,0.0,0.0,0.0,0.0998334,-0.9950042,0.0,0.9950042,0.0998334]},{"name":"geom_27","link":"FR_thigh","shape":"box","size":[0.055,0.01225,0.017],"position":[0.1170016,-0.1489305,0.5057055],"rotation":[-0.7173561,0.0,0.6967067,-0.0695546,0.9950042,-0.0716161,-0.6932261,-0.0998334,-0.7137723]},{"name":"geom_30","link":"FR_calf","shape":"cylinder","size":[0.013,0.06,0.0],"position":[0.0869046,-0.1602763,0.3926257],"rotation":[0.62161,0.0,-0.7833269,0.0782022,0.9950042,0.0620574,0.7794135,-0.0998334,0.6185045]},{"name":"geom_31","link":"FR_calf","shape":"cylinder","size":[0.011,0.0325,0.0],"position":[0.1512442,-0.1663525,0.3320658],"rotation":[0.7960838,0.0,-0.6051864,0.0604178,0.9950042,0.0794758,0.602163,-0.0998334,0.7921067]},{"name":"geom_32","link":"FR_calf","shape":"cylinder","size":[0.0155,0.015,0.0],"position":[0.1674907,-0.1701357,0.2943601],"rotation":[0.9855846,0.0,-0.1691831,0.0168901,0.9950042,0.0983943,0.1683379,-0.0998334,0.9806608]},{"name":"geom_34","link":"FR_calf","shape":"sphere","size":[0.022,0.0,0.0],"position":[0.1762918,-0.1727307,0.2684974],"rotation":[0.7648422,0.0,-0.6442177,0.0643145,0.9950042,0.0763568,0.6409993,-0.0998334,0.7610212]},{"name":"geom_37","link":"RL_hip","shape":"cylinder","size":[0.046,0.02,0.0],"position":[-0.1934,0.1261003,0.5779867],"rotation":[1.0,0.0,0.0,0.0,-0.0998334,-0.9950042,0.0,0.9950042,-0.0998334]},{"name":"geom_40","link":"RL_thigh","shape":"box","size":[0.055,0.01225,0.017],"position":[-0.2830167,0.1472675,0.5222794],"rotation":[-0.841471,0.0,0.5403023,0.0539402,0.9950042,0.0840069,-0.537603,0.0998334,-0.8372671]},{"name":"geom_43","link":"RL_calf","shape":"cylinder","size":[0.013,0.06,0.0],"position":[-0.335092,0.1577903,0.417403],"rotation":[0.7648422,0.0,-0.6442177,-0.0643145,0.9950042,-0.0763568,0.6409993,0.0998334,0.7610212]},{"name":"geom_44","link":"RL_calf","shape":"cylinder","size":[0.011,0.0325,0.0],"position":[-0.2841267,0.1650215,0.3453319],"rotation":[0.9004471,0.0,-0.4349655,-0.0434241,0.9950042,-0.0898947,0.4327925,0.0998334,0.8959486]},{"name":"geom_45","link":"RL_calf","shape":"cylinder","size":[0.0155,0.015,0.0],"position":[-0.2757326,0.1690515,0.3051662],"rotation":[0.9995501,0.0,0.0299947,0.0029945,0.9950042,-0.0997885,-0.0298449,0.0998334,0.9945565]},{"name":"geom_47","link":"RL_calf","shape":"sphere","size":[0.022,0.0,0.0],"position":[-0.2722708,0.1717693,0.2780793],"rotation":[0.8775826,0.0,-0.4794255,-0.0478627,0.9950042,-0.0876121,0.4770304,0.0998334,0.8731983]},{"name":"geom_50","link":"RR_hip","shape":"cylinder","size":[0.046,0.02,0.0],"position":[-0.1934,-0.1261003,0.5779867],"rotation":[1.0,0.0,0.0,0.0,0.0998334,-0.9950042,0.0,0.9950042,0.0998334]},{"name":"geom_53","link":"RR_thigh","shape":"box","size":[0.055,0.01225,0.017],"position":[-0.2830167,-0.1472675,0.5222794],"rotation":[-0.841471,0.0,0.5403023,-0.0539402,0.9950042,-0.0840069,-0.537603,-0.0998334,-0.8372671]},{"name":"geom_56","link":"RR_calf","shape":"cylinder","size":[0.013,0.06,0.0],"position":[-0.335092,-0.1577903,0.417403],"rotation":[0.7648422,-0.0,-0.6442177,0.0643145,0.9950042,0.0763568,0.6409993,-0.0998334,0.7610212]},{"name":"geom_57","link":"RR_calf","shape":"cylinder","size":[0.011,0.0325,0.0],"position":[-0.2841267,-0.1650215,0.3453319],"rotation":[0.9004471,-0.0,-0.4349655,0.0434241,0.9950042,0.0898947,0.4327925,-0.0998334,0.8959486]},{"name":"geom_58","link":"RR_calf","shape":"cylinder","size":[0.0155,0.015,0.0],"position":[-0.2757326,-0.1690515,0.3051662],"rotation":[0.9995501,-0.0,0.0299947,-0.0029945,0.9950042,0.0997885,-0.0298449,-0.0998334,0.9945565]},{"name":"geom_60","link":"RR_calf","shape":"sphere","size":[0.022,0.0,0.0],"position":[-0.2722708,-0.1717693,0.2780793],"rotation":[0.8775826,-0.0,-0.4794255,0.0478627,0.9950042,0.0876121,0.4770304,-0.0998334,0.8731983]}]},"urdf":{"label":"IsaacLab / URDF","path":"resources/go2/urdf/go2.urdf","geometries":[{"name":"base_collision_0","link":"base","shape":"box","size":[0.1881,0.04675,0.057],"position":[0.0,0.0,0.57],"rotation":[1.0,0.0,0.0,0.0,1.0,0.0,0.0,0.0,1.0]},{"name":"Head_upper_collision_0","link":"Head_upper","shape":"cylinder","size":[0.05,0.045,0.0],"position":[0.285,0.0,0.58],"rotation":[1.0,0.0,0.0,0.0,1.0,0.0,0.0,0.0,1.0]},{"name":"Head_lower_collision_0","link":"Head_lower","shape":"sphere","size":[0.047,0.0,0.0],"position":[0.293,0.0,0.51],"rotation":[1.0,0.0,0.0,0.0,1.0,0.0,0.0,0.0,1.0]},{"name":"FL_hip_collision_0","link":"FL_hip","shape":"cylinder","size":[0.046,0.02,0.0],"position":[0.1934,0.1261003,0.5779867],"rotation":[1.0,0.0,0.0,0.0,-0.0998334,-0.9950042,0.0,0.9950042,-0.0998334]},{"name":"FL_thigh_collision_0","link":"FL_thigh","shape":"box","size":[0.1065,0.01225,0.017],"position":[0.1170016,0.1489305,0.5057055],"rotation":[-0.7173561,0.0,0.6967067,0.0695546,0.9950042,0.0716161,-0.6932261,0.0998334,-0.7137723]},{"name":"FL_calf_collision_0","link":"FL_calf","shape":"cylinder","size":[0.012,0.06,0.0],"position":[0.085375,0.1604049,0.3913437],"rotation":[0.6137457,0.0,-0.7895037,-0.0788189,0.9950042,-0.0612723,0.7855595,0.0998334,0.6106796]},{"name":"FL_calflower_collision_0","link":"FL_calflower","shape":"cylinder","size":[0.011,0.0325,0.0],"position":[0.1512442,0.1663525,0.3320658],"rotation":[0.7960838,0.0,-0.6051864,-0.0604178,0.9950042,-0.0794758,0.602163,0.0998334,0.7921067]},{"name":"FL_calflower1_collision_0","link":"FL_calflower1","shape":"cylinder","size":[0.0155,0.015,0.0],"position":[0.1674908,0.1701358,0.2943599],"rotation":[0.9855848,0.0,-0.1691823,-0.0168901,0.9950042,-0.0983943,0.1683371,0.0998334,0.9806609]},{"name":"FL_foot_collision_0","link":"FL_foot","shape":"sphere","size":[0.022,0.0,0.0],"position":[0.1762918,0.1727307,0.2684974],"rotation":[0.7648422,0.0,-0.6442177,-0.0643145,0.9950042,-0.0763568,0.6409993,0.0998334,0.7610212]},{"name":"FR_hip_collision_0","link":"FR_hip","shape":"cylinder","size":[0.046,0.02,0.0],"position":[0.1934,-0.1261003,0.5779867],"rotation":[1.0,0.0,0.0,0.0,0.0998334,-0.9950042,0.0,0.9950042,0.0998334]},{"name":"FR_thigh_collision_0","link":"FR_thigh","shape":"box","size":[0.1065,0.01225,0.017],"position":[0.1170016,-0.1489305,0.5057055],"rotation":[-0.7173561,0.0,0.6967067,-0.0695546,0.9950042,-0.0716161,-0.6932261,-0.0998334,-0.7137723]},{"name":"FR_calf_collision_0","link":"FR_calf","shape":"cylinder","size":[0.013,0.06,0.0],"position":[0.0869046,-0.1602763,0.3926257],"rotation":[0.62161,0.0,-0.7833269,0.0782022,0.9950042,0.0620574,0.7794135,-0.0998334,0.6185045]},{"name":"FR_calflower_collision_0","link":"FR_calflower","shape":"cylinder","size":[0.011,0.0325,0.0],"position":[0.1512442,-0.1663525,0.3320658],"rotation":[0.7960838,0.0,-0.6051864,0.0604178,0.9950042,0.0794758,0.602163,-0.0998334,0.7921067]},{"name":"FR_calflower1_collision_0","link":"FR_calflower1","shape":"cylinder","size":[0.0155,0.015,0.0],"position":[0.1674908,-0.1701358,0.2943599],"rotation":[0.9855848,0.0,-0.1691823,0.0168901,0.9950042,0.0983943,0.1683371,-0.0998334,0.9806609]},{"name":"FR_foot_collision_0","link":"FR_foot","shape":"sphere","size":[0.022,0.0,0.0],"position":[0.1762918,-0.1727307,0.2684974],"rotation":[0.7648422,0.0,-0.6442177,0.0643145,0.9950042,0.0763568,0.6409993,-0.0998334,0.7610212]},{"name":"RL_hip_collision_0","link":"RL_hip","shape":"cylinder","size":[0.046,0.02,0.0],"position":[-0.1934,0.1261003,0.5779867],"rotation":[1.0,0.0,0.0,0.0,-0.0998334,-0.9950042,0.0,0.9950042,-0.0998334]},{"name":"RL_thigh_collision_0","link":"RL_thigh","shape":"box","size":[0.1065,0.01225,0.017],"position":[-0.2830167,0.1472675,0.5222794],"rotation":[-0.841471,0.0,0.5403023,0.0539402,0.9950042,0.0840069,-0.537603,0.0998334,-0.8372671]},{"name":"RL_calf_collision_0","link":"RL_calf","shape":"cylinder","size":[0.013,0.06,0.0],"position":[-0.335092,0.1577903,0.417403],"rotation":[0.7648422,0.0,-0.6442177,-0.0643145,0.9950042,-0.0763568,0.6409993,0.0998334,0.7610212]},{"name":"RL_calflower_collision_0","link":"RL_calflower","shape":"cylinder","size":[0.011,0.0325,0.0],"position":[-0.2841267,0.1650215,0.3453319],"rotation":[0.9004471,0.0,-0.4349655,-0.0434241,0.9950042,-0.0898947,0.4327925,0.0998334,0.8959486]},{"name":"RL_calflower1_collision_0","link":"RL_calflower1","shape":"cylinder","size":[0.0155,0.015,0.0],"position":[-0.2757325,0.1690515,0.305166],"rotation":[0.99955,0.0,0.0299955,0.0029946,0.9950042,-0.0997885,-0.0298456,0.0998334,0.9945564]},{"name":"RL_foot_collision_0","link":"RL_foot","shape":"sphere","size":[0.022,0.0,0.0],"position":[-0.2722708,0.1717693,0.2780793],"rotation":[0.8775826,0.0,-0.4794255,-0.0478627,0.9950042,-0.0876121,0.4770304,0.0998334,0.8731983]},{"name":"RR_hip_collision_0","link":"RR_hip","shape":"cylinder","size":[0.046,0.02,0.0],"position":[-0.1934,-0.1261003,0.5779867],"rotation":[1.0,0.0,0.0,0.0,0.0998334,-0.9950042,0.0,0.9950042,0.0998334]},{"name":"RR_thigh_collision_0","link":"RR_thigh","shape":"box","size":[0.1065,0.01225,0.017],"position":[-0.2830167,-0.1472675,0.5222794],"rotation":[-0.841471,0.0,0.5403023,-0.0539402,0.9950042,-0.0840069,-0.537603,-0.0998334,-0.8372671]},{"name":"RR_calf_collision_0","link":"RR_calf","shape":"cylinder","size":[0.013,0.06,0.0],"position":[-0.335092,-0.1577903,0.417403],"rotation":[0.7648422,0.0,-0.6442177,0.0643145,0.9950042,0.0763568,0.6409993,-0.0998334,0.7610212]},{"name":"RR_calflower_collision_0","link":"RR_calflower","shape":"cylinder","size":[0.011,0.0325,0.0],"position":[-0.2841267,-0.1650215,0.3453319],"rotation":[0.9004471,0.0,-0.4349655,0.0434241,0.9950042,0.0898947,0.4327925,-0.0998334,0.8959486]},{"name":"RR_calflower1_collision_0","link":"RR_calflower1","shape":"cylinder","size":[0.0155,0.015,0.0],"position":[-0.2757325,-0.1690515,0.305166],"rotation":[0.99955,0.0,0.0299955,-0.0029946,0.9950042,0.0997885,-0.0298456,-0.0998334,0.9945564]},{"name":"RR_foot_collision_0","link":"RR_foot","shape":"sphere","size":[0.022,0.0,0.0],"position":[-0.2722708,-0.1717693,0.2780793],"rotation":[0.8775826,0.0,-0.4794255,0.0478627,0.9950042,0.0876121,0.4770304,-0.0998334,0.8731983]}]}},"height":0.57,"joints":{"FL_hip_joint":0.1,"FL_thigh_joint":0.8,"FL_calf_joint":-1.5,"FR_hip_joint":-0.1,"FR_thigh_joint":0.8,"FR_calf_joint":-1.5,"RL_hip_joint":0.1,"RL_thigh_joint":1.0,"RL_calf_joint":-1.5,"RR_hip_joint":-0.1,"RR_thigh_joint":1.0,"RR_calf_joint":-1.5}}</script>
+<script>
+"use strict";
+(() => {
+  const data = JSON.parse(document.getElementById("model-data").textContent);
+  const canvas = document.getElementById("scene");
+  const ctx = canvas.getContext("2d");
+  const $ = id => document.getElementById(id);
+  const add = (a, b) => a.map((v, i) => v + b[i]);
+  const sub = (a, b) => a.map((v, i) => v - b[i]);
+  const scale = (a, s) => a.map(v => v * s);
+  const dot = (a, b) => a.reduce((sum, v, i) => sum + v * b[i], 0);
+  const cross = (a, b) => [a[1]*b[2]-a[2]*b[1],
+    a[2]*b[0]-a[0]*b[2], a[0]*b[1]-a[1]*b[0]];
+  const normalize = a => scale(a, 1 / (Math.hypot(...a) || 1));
+  const names = {FL: "左前腿", FR: "右前腿", RL: "左后腿", RR: "右后腿"};
+  const colors = {box: [106, 168, 222], cylinder: [116, 197, 172],
+    sphere: [229, 195, 120]};
+  let yaw = 2.35, pitch = .42, distance = 1.75;
+  let selected = null, width = 0, height = 0, rendered = [];
+  let drag = null, scheduled = false;
+  let source = data.sources.mjcf;
+  const target = [.02, 0, data.height - .16];
+
+  function faces(geom) {
+    const s = geom.size;
+    const polygons = [];
+    if (geom.shape === "box") {
+      const v = [[-1,-1,-1],[1,-1,-1],[1,1,-1],[-1,1,-1],
+        [-1,-1,1],[1,-1,1],[1,1,1],[-1,1,1]];
+      for (const ids of [[0,3,2,1],[4,5,6,7],[0,1,5,4],
+        [1,2,6,5],[2,3,7,6],[3,0,4,7]]) {
+        polygons.push(ids.map(i => v[i].map((value,j) => value*s[j])));
+      }
+    } else if (geom.shape === "cylinder") {
+      const a = [], b = [], n = 24;
+      for (let i = 0; i < n; i++) {
+        const t = i * 2 * Math.PI / n;
+        a.push([s[0]*Math.cos(t), s[0]*Math.sin(t), -s[1]]);
+        b.push([s[0]*Math.cos(t), s[0]*Math.sin(t), s[1]]);
+      }
+      polygons.push([...a].reverse(), b);
+      for (let i = 0; i < n; i++) {
+        const j = (i + 1) % n;
+        polygons.push([a[i], a[j], b[j], b[i]]);
+      }
+    } else {
+      const n = 20, rings = 10;
+      const point = (i, j) => {
+        const theta = i * Math.PI / rings, phi = j * 2 * Math.PI / n;
+        return [s[0]*Math.sin(theta)*Math.cos(phi),
+          s[0]*Math.sin(theta)*Math.sin(phi), s[0]*Math.cos(theta)];
+      };
+      for (let i = 0; i < rings; i++) {
+        for (let j = 0; j < n; j++) {
+          polygons.push([point(i,j), point(i+1,j),
+            point(i+1,j+1), point(i,j+1)]);
+        }
+      }
+    }
+    const m = geom.rotation;
+    return polygons.map(face => face.map(v => add(geom.position, [
+      m[0]*v[0]+m[1]*v[1]+m[2]*v[2],
+      m[3]*v[0]+m[4]*v[1]+m[5]*v[2],
+      m[6]*v[0]+m[7]*v[1]+m[8]*v[2],
+    ])));
+  }
+
+  for (const entry of Object.values(data.sources)) {
+    entry.geometries.forEach(geom => { geom.faces = faces(geom); });
+  }
+  function visible(geom) {
+    const part = $("part").value;
+    if (part === "all") return true;
+    if (part === "body") return !/^(FL|FR|RL|RR)_/.test(geom.link);
+    return geom.link.startsWith(part + "_");
+  }
+  function label(geom) {
+    const suffix = {box: "盒体", cylinder: "圆柱", sphere: "球体"};
+    return `${geom.link} · ${suffix[geom.shape]} · ${geom.name}`;
+  }
+  function updateDetail() {
+    const geom = source.geometries.find(g => g.name === selected);
+    if (!geom) {
+      $("geometry-detail").textContent = "点击模型中的碰撞体，查看真实尺寸。";
+      $("geometry").value = "";
+      return;
+    }
+    $("geometry").value = selected;
+    const mm = value => (value*1000).toFixed(1);
+    const size = geom.shape === "box"
+      ? `完整边长 ${geom.size.map(v => mm(2*v)).join(" × ")} mm`
+      : geom.shape === "cylinder"
+        ? `半径 ${mm(geom.size[0])} mm，完整长度 ${mm(2*geom.size[1])} mm`
+        : `半径 ${mm(geom.size[0])} mm`;
+    $("geometry-detail").textContent = `${geom.link}：${size}；`
+      + `世界坐标中心 [${geom.position.map(v => v.toFixed(3)).join(", ")}] m。`;
+  }
+  function refreshSource() {
+    source = data.sources[$("source").value];
+    selected = null;
+    $("path").textContent = source.path;
+    $("count").textContent = `${source.label} · ${source.geometries.length} 个碰撞体`;
+    $("height").textContent = `初始基座高度 ${data.height.toFixed(2)} m · X 前 / Y 左 / Z 上`;
+    $("geometry").replaceChildren(new Option("点击模型，或从这里选择", ""));
+    source.geometries.filter(visible).forEach(geom => {
+      $("geometry").add(new Option(label(geom), geom.name));
+    });
+    updateDetail();
+    requestDraw();
+  }
+  function requestDraw() {
+    if (scheduled) return;
+    scheduled = true;
+    requestAnimationFrame(() => { scheduled = false; draw(); });
+  }
+  function draw() {
+    const rect = canvas.getBoundingClientRect();
+    width = rect.width; height = rect.height;
+    const dpr = Math.min(window.devicePixelRatio || 1, 2);
+    if (canvas.width !== Math.round(width*dpr)
+      || canvas.height !== Math.round(height*dpr)) {
+      canvas.width = Math.round(width*dpr);
+      canvas.height = Math.round(height*dpr);
+    }
+    ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+    ctx.clearRect(0, 0, width, height);
+    const eye = add(target, [distance*Math.cos(pitch)*Math.cos(yaw),
+      distance*Math.cos(pitch)*Math.sin(yaw), distance*Math.sin(pitch)]);
+    const forward = normalize(sub(target, eye));
+    const right = normalize(cross(forward, [0,0,1]));
+    const up = cross(right, forward);
+    const focal = Math.min(width, height) * 1.45;
+    const project = point => {
+      const relative = sub(point, eye), z = dot(relative, forward);
+      return [width/2 + focal*dot(relative,right)/z,
+        height*.52 - focal*dot(relative,up)/z, z];
+    };
+    const line = (a, b, color, thickness=1) => {
+      a = project(a); b = project(b);
+      if (a[2] <= .01 || b[2] <= .01) return;
+      ctx.beginPath(); ctx.moveTo(a[0],a[1]); ctx.lineTo(b[0],b[1]);
+      ctx.strokeStyle = color; ctx.lineWidth = thickness; ctx.stroke();
+    };
+    if ($("ground").checked) {
+      for (let i = -10; i <= 10; i++) {
+        line([i*.1,-1,0],[i*.1,1,0],"#253341");
+        line([-1,i*.1,0],[1,i*.1,0],"#253341");
+      }
+    }
+    rendered = [];
+    const light = normalize([.4,-.5,1]);
+    for (const geom of source.geometries.filter(visible)) {
+      for (const face of geom.faces) {
+        const points = face.map(project);
+        if (points.some(point => point[2] <= .01)) continue;
+        const normal = normalize(cross(sub(face[1],face[0]),sub(face[2],face[0])));
+        const brightness = .50 + .5*Math.abs(dot(normal,light));
+        const color = geom.name === selected ? [242,242,242] : colors[geom.shape];
+        rendered.push({points, geom,
+          depth: points.reduce((sum,p) => sum+p[2],0)/points.length,
+          color: color.map(c => Math.round(c*brightness))});
+      }
+    }
+    rendered.sort((a,b) => b.depth-a.depth);
+    for (const face of rendered) {
+      ctx.beginPath();
+      face.points.forEach((p,i) => i ? ctx.lineTo(p[0],p[1]) : ctx.moveTo(p[0],p[1]));
+      ctx.closePath(); ctx.fillStyle = `rgb(${face.color.join(",")})`; ctx.fill();
+      if (face.geom.shape === "box" || $("wire").checked) {
+        ctx.strokeStyle = face.geom.name === selected ? "#ffffff" : "#17313a66";
+        ctx.lineWidth = face.geom.name === selected ? 1.2 : .55; ctx.stroke();
+      }
+    }
+    const start = [.5, -.42, .015];
+    for (const [label, vector] of [["X 前",[.18,0,0]],
+      ["Y 左",[0,.18,0]],["Z 上",[0,0,.18]]]) {
+      const end = add(start, vector);
+      line(start,end,"#a8b9cc",1.5);
+      const point = project(end);
+      ctx.fillStyle = "#bdcddd"; ctx.font = "12px system-ui";
+      ctx.fillText(label,point[0]+4,point[1]-4);
+    }
+  }
+  function inside(x, y, polygon) {
+    let result = false;
+    for (let i=0,j=polygon.length-1; i<polygon.length; j=i++) {
+      const a=polygon[i], b=polygon[j];
+      if ((a[1]>y)!==(b[1]>y)
+        && x<(b[0]-a[0])*(y-a[1])/(b[1]-a[1])+a[0]) result=!result;
+    }
+    return result;
+  }
+  canvas.addEventListener("pointerdown", event => {
+    drag = {x: event.clientX, y: event.clientY, moved: false};
+    canvas.setPointerCapture(event.pointerId);
+  });
+  canvas.addEventListener("pointermove", event => {
+    if (!drag) return;
+    const dx=event.clientX-drag.x, dy=event.clientY-drag.y;
+    if (Math.abs(dx)+Math.abs(dy)>2) drag.moved=true;
+    yaw -= dx*.008;
+    pitch = Math.max(-.2,Math.min(1.55,pitch+dy*.006));
+    drag.x=event.clientX; drag.y=event.clientY;
+    requestDraw();
+  });
+  canvas.addEventListener("pointerup", event => {
+    if (drag && !drag.moved) {
+      const rect=canvas.getBoundingClientRect();
+      const x=event.clientX-rect.left,y=event.clientY-rect.top;
+      selected=null;
+      for (let i=rendered.length-1;i>=0;i--) {
+        if (inside(x,y,rendered[i].points)) {
+          selected=rendered[i].geom.name; break;
+        }
+      }
+      updateDetail(); requestDraw();
+    }
+    drag=null;
+  });
+  canvas.addEventListener("pointercancel", () => { drag=null; });
+  canvas.addEventListener("wheel", event => {
+    event.preventDefault();
+    distance=Math.max(.95,Math.min(4,distance*Math.exp(event.deltaY*.001)));
+    requestDraw();
+  }, {passive:false});
+  $("source").addEventListener("change",refreshSource);
+  $("part").addEventListener("change",refreshSource);
+  $("geometry").addEventListener("change",() => {
+    selected=$("geometry").value || null; updateDetail(); requestDraw();
+  });
+  const setView = () => {
+    [yaw,pitch] = {orbit:[2.35,.42],front:[0,.10],
+      side:[-Math.PI/2,.10],top:[-Math.PI/2,1.55]}[$("view").value];
+    distance=1.75; requestDraw();
+  };
+  $("view").addEventListener("change",setView);
+  $("reset").addEventListener("click",() => { $("view").value="orbit"; setView(); });
+  $("wire").addEventListener("change",requestDraw);
+  $("ground").addEventListener("change",requestDraw);
+  for (const [prefix, label] of Object.entries(names)) {
+    const entry=document.createElement("div");
+    const angles=["hip","thigh","calf"].map(joint =>
+      data.joints[`${prefix}_${joint}_joint`].toFixed(1));
+    entry.textContent=`${label} ${prefix}：${angles.join(" / ")}`;
+    $("joints").append(entry);
+  }
+  new ResizeObserver(requestDraw).observe(canvas);
+  refreshSource();
+})();
+</script>
+</body>
+</html>

@@ -1,0 +1,178 @@
+<mujoco model="simtosim_race">
+  <compiler angle="radian" autolimits="true" inertiafromgeom="false" fusestatic="false" />
+  <option timestep="0.001" gravity="0 0 -9.8100000000000005" integrator="implicitfast" solver="Newton" iterations="50" tolerance="1e-10" cone="pyramidal" jacobian="auto" />
+  <size nconmax="1500" njmax="6000" />
+  <asset>
+    <texture type="skybox" builtin="flat" rgb1="0 0 0" rgb2="0 0 0" width="512" height="3072" />
+    <texture type="2d" name="groundplane" builtin="checker" mark="edge" rgb1="0.2 0.3 0.4" rgb2="0.1 0.2 0.3" markrgb="0.8 0.8 0.8" width="300" height="300" />
+    <material name="groundplane" texture="groundplane" texuniform="true" texrepeat="5 5" reflectance="0.2" />
+    <mesh name="visual_base_link_0" file="../meshes/base_link.stl" scale="1 1 1" />
+    <mesh name="visual_camera_chest_mounted_link_0" file="../meshes/camera_chest_mounted_link.stl" scale="1 1 1" />
+    <mesh name="visual_roll_leg_f_l_link_0" file="../meshes/roll_leg_f_l_link.stl" scale="1 1 1" />
+    <mesh name="visual_pitch01_leg_f_l_link_0" file="../meshes/pitch01_leg_f_l_link.stl" scale="1 1 1" />
+    <mesh name="visual_pitch02_leg_f_l_link_0" file="../meshes/pitch02_leg_f_l_link.stl" scale="1 1 1" />
+    <mesh name="visual_pitch03_leg_f_l_link_0" file="../meshes/pitch03_leg_f_l_link.stl" scale="1 1 1" />
+    <mesh name="visual_roll_leg_f_r_link_0" file="../meshes/roll_leg_f_r_link.stl" scale="1 1 1" />
+    <mesh name="visual_pitch01_leg_f_r_link_0" file="../meshes/pitch01_leg_f_r_link.stl" scale="1 1 1" />
+    <mesh name="visual_pitch02_leg_f_r_link_0" file="../meshes/pitch02_leg_f_r_link.stl" scale="1 1 1" />
+    <mesh name="visual_pitch03_leg_f_r_link_0" file="../meshes/pitch03_leg_f_r_link.stl" scale="1 1 1" />
+    <mesh name="visual_roll_leg_b_l_link_0" file="../meshes/roll_leg_b_l_link.stl" scale="1 1 1" />
+    <mesh name="visual_pitch01_leg_b_l_link_0" file="../meshes/pitch01_leg_b_l_link.stl" scale="1 1 1" />
+    <mesh name="visual_pitch02_leg_b_l_link_0" file="../meshes/pitch02_leg_b_l_link.stl" scale="1 1 1" />
+    <mesh name="visual_pitch03_leg_b_l_link_0" file="../meshes/pitch03_leg_b_l_link.stl" scale="1 1 1" />
+    <mesh name="visual_roll_leg_b_r_link_0" file="../meshes/roll_leg_b_r_link.stl" scale="1 1 1" />
+    <mesh name="visual_pitch01_leg_b_r_link_0" file="../meshes/pitch01_leg_b_r_link.stl" scale="1 1 1" />
+    <mesh name="visual_pitch02_leg_b_r_link_0" file="../meshes/pitch02_leg_b_r_link.stl" scale="1 1 1" />
+    <mesh name="visual_pitch03_leg_b_r_link_0" file="../meshes/pitch03_leg_b_r_link.stl" scale="1 1 1" />
+    <mesh name="visual_head_shake_link_0" file="../meshes/head_shake_link.stl" scale="1 1 1" />
+    <mesh name="visual_head_nod_link_0" file="../meshes/head_nod_link.stl" scale="1 1 1" />
+    <mesh name="visual_camera_head_mounted_link_0" file="../meshes/camera_head_mounted_link.stl" scale="1 1 1" />
+  </asset>
+  <worldbody>
+    <light pos="1 0 3.5" dir="0 0 -1" directional="true" />
+    <geom name="ground" type="plane" size="0 0 0.05" material="groundplane" contype="1" conaffinity="2" condim="3" group="0" friction="1 0.005 0.0001" solref="0.004 1" solimp="0.95 0.99 0.001" margin="0" />
+    <body name="base_link" pos="0 0 0.35999999999999999" quat="1 0 0 0">
+      <inertial pos="0.00769926234484411 0.0037094400907789799 0.00271488792883355" mass="5.96147624501138" fullinertia="0.0129797150924517 0.014433920484944599 0.0208692629803644 -1.8516655126021801e-05 -2.3031914368426701e-05 0.00011513144137386001" />
+      <freejoint name="floating_base_joint" />
+      <geom name="visual_base_link_0" type="mesh" mesh="visual_base_link_0" pos="0 0 0" quat="1 0 0 0" contype="0" conaffinity="0" group="2" density="0" rgba="0.75 0.75 0.75 1" />
+      <geom name="collision_base_link_0" pos="0.01 0 -0.018499999999999999" quat="1 0 0 0" contype="2" conaffinity="3" condim="3" group="1" density="0" friction="1 0.005 0.0001" solref="0.004 1" solimp="0.95 0.99 0.001" margin="0" rgba="0.2 0.7 0.8 0.5" type="box" size="0.25900000000000001 0.10299999999999999 0.0785" />
+      <body name="camera_chest_mounted_link" pos="0.24124000000000001 0 -0.043998000000000002" quat="0.97307727793204379 0 0.23047909053179644 0">
+        <inertial pos="-0.00740722409823807 0.00066982317359099005 0.0066259653807821802" mass="0.00453903301283303" fullinertia="5.70217792555464e-07 1.41500882664884e-07 4.3671335606340502e-07 1.72699814116696e-10 -1.10039594886445e-09 -8.0483040053455501e-09" />
+        <geom name="visual_camera_chest_mounted_link_0" type="mesh" mesh="visual_camera_chest_mounted_link_0" pos="0 0 0" quat="1 0 0 0" contype="0" conaffinity="0" group="2" density="0" rgba="0.75 0.75 0.75 1" />
+      </body>
+      <body name="roll_leg_f_l_link" pos="0.1825 0.044999999999999998 0" quat="1 0 0 0">
+        <inertial pos="-0.032658377699363701 -0.013790270758146501 9.0959978074793699e-12" mass="0.108848812258547" fullinertia="3.84682044367547e-05 9.7773088224210598e-05 0.000100758798008825 2.5074660032125801e-05 -7.0151482773231898e-15 1.38914030815205e-10" />
+        <joint name="roll_leg_f_l_joint" type="hinge" pos="0 0 0" axis="1 0 0" limited="true" range="-0.733 0.733" damping="0" frictionloss="0" armature="0.01" />
+        <geom name="visual_roll_leg_f_l_link_0" type="mesh" mesh="visual_roll_leg_f_l_link_0" pos="0 0 0" quat="1 0 0 0" contype="0" conaffinity="0" group="2" density="0" rgba="0.75 0.75 0.75 1" />
+        <body name="pitch01_leg_f_l_link" pos="0 0 0" quat="1 0 0 0">
+          <inertial pos="-0.0235814861894789 0.056858166842495103 -0.017937881049655099" mass="1.71124111349137" fullinertia="0.0020344391376057999 0.00375610494011889 0.0023339623249128199 -1.05413188466389e-05 -0.0011096176644473899 -9.7539202411624499e-06" />
+          <joint name="pitch01_leg_f_l_joint" type="hinge" pos="0 0 0" axis="0 1 0" limited="true" range="-2.2689 2.2689" damping="0" frictionloss="0" armature="0.015" />
+          <geom name="visual_pitch01_leg_f_l_link_0" type="mesh" mesh="visual_pitch01_leg_f_l_link_0" pos="0 0 0" quat="1 0 0 0" contype="0" conaffinity="0" group="2" density="0" rgba="0.75 0.75 0.75 1" />
+          <geom name="collision_pitch01_leg_f_l_link_0" pos="-0.092837390000000006 0.098160890000000001 -0.068773749999999995" quat="0.3483104696643885 0.0094914253557217276 0.93728047921570634 0.0097484792693757674" contype="2" conaffinity="3" condim="3" group="1" density="0" friction="1 0.005 0.0001" solref="0.004 1" solimp="0.95 0.99 0.001" margin="0" rgba="0.2 0.7 0.8 0.5" type="box" size="0.055907770000000002 0.018239294999999999 0.02760642" />
+          <geom name="collision_pitch01_leg_f_l_link_1" pos="0 0.096952460000000004 0" quat="0.70710678005337235 0.70710678231972268 0 0" contype="2" conaffinity="3" condim="3" group="1" density="0" friction="1 0.005 0.0001" solref="0.004 1" solimp="0.95 0.99 0.001" margin="0" rgba="0.2 0.7 0.8 0.5" type="cylinder" size="0.045499999999999999 0.025065991014242173" />
+          <body name="pitch02_leg_f_l_link" pos="-0.14141999999999999 0.093900999999999998 -0.14141999999999999" quat="1 0 0 0">
+            <inertial pos="0.061946300833310097 1.2856056183507801e-07 -0.042493964357745898" mass="0.174276693614702" fullinertia="0.00039461580077017398 0.00091872071520163103 0.00054008632143394701 3.6862744103420701e-09 0.00043065503069108103 -2.9509209707833702e-09" />
+            <joint name="pitch02_leg_f_l_joint" type="hinge" pos="0 0 0" axis="0 1 0" limited="true" range="-1.0472 0.8727" damping="0" frictionloss="0" armature="0.012" />
+            <geom name="visual_pitch02_leg_f_l_link_0" type="mesh" mesh="visual_pitch02_leg_f_l_link_0" pos="0 0 0" quat="1 0 0 0" contype="0" conaffinity="0" group="2" density="0" rgba="0.75 0.75 0.75 1" />
+            <geom name="collision_pitch02_leg_f_l_link_0" pos="0.030967620000000001 6.1069999999999996e-05 -0.014379350000000001" quat="0.37834624782889614 0.59242902934802755 0.59689132745339346 0.38678508910049164" contype="2" conaffinity="3" condim="3" group="1" density="0" friction="1 0.005 0.0001" solref="0.004 1" solimp="0.95 0.99 0.001" margin="0" rgba="0.2 0.7 0.8 0.5" type="cylinder" size="0.019695525583298422 0.063631886920881772" />
+            <geom name="collision_pitch02_leg_f_l_link_1" pos="0.1057659 -0.00013422999999999999 -0.070213940000000002" quat="0.26128292583038243 0.65671837674738331 0.65704900628198371 0.26218087202474316" contype="2" conaffinity="3" condim="3" group="1" density="0" friction="1 0.005 0.0001" solref="0.004 1" solimp="0.95 0.99 0.001" margin="0" rgba="0.2 0.7 0.8 0.5" type="cylinder" size="0.01403791495143982 0.038187903207220153" />
+            <geom name="collision_pitch02_leg_f_l_link_2" pos="0.13805347000000001 0.00062113999999999995 -0.11861263" quat="0.14376189176145945 0.69503704512778175 0.69269957084621114 0.12815353653599801" contype="2" conaffinity="3" condim="3" group="1" density="0" friction="1 0.005 0.0001" solref="0.004 1" solimp="0.95 0.99 0.001" margin="0" rgba="0.2 0.7 0.8 0.5" type="cylinder" size="0.017068849702594775 0.032009051216311479" />
+            <body name="pitch03_leg_f_l_link" pos="0.15117 0.0099801000000000004 -0.14179" quat="1 0 0 0">
+              <inertial pos="-0.0060176184843988602 -0.0099895108919600996 -0.0094631265409789705" mass="0.0359214383271754" fullinertia="5.1971355258586498e-06 7.7488924357770293e-06 8.0434569186384493e-06 1.7544765597921201e-10 -6.8897194862487395e-08 4.0885604030746002e-11" />
+              <geom name="visual_pitch03_leg_f_l_link_0" type="mesh" mesh="visual_pitch03_leg_f_l_link_0" pos="0 0 0" quat="1 0 0 0" contype="0" conaffinity="0" group="2" density="0" rgba="0.75 0.75 0.75 1" />
+              <geom name="collision_pitch03_leg_f_l_link_0" pos="-0.0061753900000000002 -0.010005490000000001 -0.0046639799999999999" quat="1 0 0 0" contype="2" conaffinity="3" condim="3" group="1" density="0" friction="1 0.005 0.0001" solref="0.004 1" solimp="0.95 0.99 0.001" margin="0" rgba="0.2 0.7 0.8 0.5" type="sphere" size="0.0235" />
+            </body>
+          </body>
+        </body>
+      </body>
+      <body name="roll_leg_f_r_link" pos="0.1825 -0.044999999999999998 0" quat="1 0 0 0">
+        <inertial pos="-0.032658377699371098 0.0137902707581461 -9.09561776107252e-12" mass="0.108848812258547" fullinertia="3.8468204436755297e-05 9.7773088224210002e-05 0.000100758798008825 -2.5074660032126499e-05 7.0143607677508003e-15 1.38914030715413e-10" />
+        <joint name="roll_leg_f_r_joint" type="hinge" pos="0 0 0" axis="1 0 0" limited="true" range="-0.733 0.733" damping="0" frictionloss="0" armature="0.01" />
+        <geom name="visual_roll_leg_f_r_link_0" type="mesh" mesh="visual_roll_leg_f_r_link_0" pos="0 0 0" quat="1 0 0 0" contype="0" conaffinity="0" group="2" density="0" rgba="0.75 0.75 0.75 1" />
+        <body name="pitch01_leg_f_r_link" pos="0 0 0" quat="1 0 0 0">
+          <inertial pos="-0.023633825501337899 -0.056854963898141798 -0.0180987311141259" mass="1.71106527136852" fullinertia="0.00204707470785096 0.0037548470530003198 0.00232007601988989 1.04079844586526e-05 -0.00112494418711811 9.73630880875591e-06" />
+          <joint name="pitch01_leg_f_r_joint" type="hinge" pos="0 0 0" axis="0 1 0" limited="true" range="-2.2689 2.2689" damping="0" frictionloss="0" armature="0.015" />
+          <geom name="visual_pitch01_leg_f_r_link_0" type="mesh" mesh="visual_pitch01_leg_f_r_link_0" pos="0 0 0" quat="1 0 0 0" contype="0" conaffinity="0" group="2" density="0" rgba="0.75 0.75 0.75 1" />
+          <geom name="collision_pitch01_leg_f_r_link_0" pos="-0.092872280000000001 -0.097537349999999995 -0.066638340000000004" quat="0.31226734153962893 0.015919365148122182 0.94976302290351 0.013633838279816112" contype="2" conaffinity="3" condim="3" group="1" density="0" friction="1 0.005 0.0001" solref="0.004 1" solimp="0.95 0.99 0.001" margin="0" rgba="0.2 0.7 0.8 0.5" type="box" size="0.056399165000000001 0.018386960000000001 0.025137244999999999" />
+          <geom name="collision_pitch01_leg_f_r_link_1" pos="0 -0.096826590000000004 0" quat="0.70710678005337235 0.70710678231972268 0 0" contype="2" conaffinity="3" condim="3" group="1" density="0" friction="1 0.005 0.0001" solref="0.004 1" solimp="0.95 0.99 0.001" margin="0" rgba="0.2 0.7 0.8 0.5" type="cylinder" size="0.045499999999999999 0.024935844272375107" />
+          <body name="pitch02_leg_f_r_link" pos="-0.14050000000000001 -0.093898999999999996 -0.14233000000000001" quat="1 0 0 0">
+            <inertial pos="0.061954635831881003 1.2858872053267401e-07 -0.042481810776059302" mass="0.174276692963277" fullinertia="0.00039444683360773998 0.00091872071190678898 0.00054025528526021802 3.6866763171438699e-09 0.00043062645746637899 -2.9500053298608202e-09" />
+            <joint name="pitch02_leg_f_r_joint" type="hinge" pos="0 0 0" axis="0 1 0" limited="true" range="-1.0472 0.8727" damping="0" frictionloss="0" armature="0.012" />
+            <geom name="visual_pitch02_leg_f_r_link_0" type="mesh" mesh="visual_pitch02_leg_f_r_link_0" pos="0 0 0" quat="1 0 0 0" contype="0" conaffinity="0" group="2" density="0" rgba="0.75 0.75 0.75 1" />
+            <geom name="collision_pitch02_leg_f_r_link_0" pos="0.030970319999999999 6.1069999999999996e-05 -0.014373230000000001" quat="0.37840802967480475 0.59238605303562997 0.5968592264980852 0.38684000696748944" contype="2" conaffinity="3" condim="3" group="1" density="0" friction="1 0.005 0.0001" solref="0.004 1" solimp="0.95 0.99 0.001" margin="0" rgba="0.2 0.7 0.8 0.5" type="cylinder" size="0.019695526408232061 0.06363175684296532" />
+            <geom name="collision_pitch02_leg_f_r_link_1" pos="0.10638668 -0.00018563999999999999 -0.069730070000000005" quat="0.25406160579592824 0.65942188665338342 0.65988298654267008 0.25528399858669742" contype="2" conaffinity="3" condim="3" group="1" density="0" friction="1 0.005 0.0001" solref="0.004 1" solimp="0.95 0.99 0.001" margin="0" rgba="0.2 0.7 0.8 0.5" type="cylinder" size="0.013981148913909443 0.038407217779582462" />
+            <geom name="collision_pitch02_leg_f_r_link_2" pos="0.1380767 0.00062105000000000005 -0.11858541" quat="0.14382676317264856 0.6950311584605473 0.69267891137070059 0.12822432182144516" contype="2" conaffinity="3" condim="3" group="1" density="0" friction="1 0.005 0.0001" solref="0.004 1" solimp="0.95 0.99 0.001" margin="0" rgba="0.2 0.7 0.8 0.5" type="cylinder" size="0.01706885394522533 0.032009182584661774" />
+            <body name="pitch03_leg_f_r_link" pos="0.1512 -0.0099994999999999997 -0.14176" quat="1 0 0 0">
+              <inertial pos="-0.0060157655138809198 0.0099899971056025307 -0.0094643109709792693" mass="0.0359214523623317" fullinertia="5.1971642509192303e-06 7.7488953390793803e-06 8.0434310800183993e-06 1.7536394307742001e-10 -6.9457035818415098e-08 4.0849971168788197e-11" />
+              <geom name="visual_pitch03_leg_f_r_link_0" type="mesh" mesh="visual_pitch03_leg_f_r_link_0" pos="0 0 0" quat="1 0 0 0" contype="0" conaffinity="0" group="2" density="0" rgba="0.75 0.75 0.75 1" />
+              <geom name="collision_pitch03_leg_f_r_link_0" pos="-0.0061745400000000001 0.0099740200000000001 -0.0046649400000000002" quat="1 0 0 0" contype="2" conaffinity="3" condim="3" group="1" density="0" friction="1 0.005 0.0001" solref="0.004 1" solimp="0.95 0.99 0.001" margin="0" rgba="0.2 0.7 0.8 0.5" type="sphere" size="0.0235" />
+            </body>
+          </body>
+        </body>
+      </body>
+      <body name="roll_leg_b_l_link" pos="-0.1825 0.044999999999999998 0" quat="1 0 0 0">
+        <inertial pos="0.032658377699382797 -0.0137902707581461 -9.0956146457807404e-12" mass="0.108848812258547" fullinertia="3.8468204436755297e-05 9.7773088224210205e-05 0.000100758798008825 -2.5074660032126499e-05 -7.0143464600773201e-15 -1.38914030710209e-10" />
+        <joint name="roll_leg_b_l_joint" type="hinge" pos="0 0 0" axis="1 0 0" limited="true" range="-0.733 0.733" damping="0" frictionloss="0" armature="0.01" />
+        <geom name="visual_roll_leg_b_l_link_0" type="mesh" mesh="visual_roll_leg_b_l_link_0" pos="0 0 0" quat="1 0 0 0" contype="0" conaffinity="0" group="2" density="0" rgba="0.75 0.75 0.75 1" />
+        <body name="pitch01_leg_b_l_link" pos="0 0 0" quat="1 0 0 0">
+          <inertial pos="-0.0235814862340833 0.056858166984882497 -0.0179378809730322" mass="1.7112411187611" fullinertia="0.0020344391406709101 0.0037561049531820499 0.0023339623351626899 -1.0541317226897099e-05 -0.00110961766524962 -9.7539198657921997e-06" />
+          <joint name="pitch01_leg_b_l_joint" type="hinge" pos="0 0 0" axis="0 1 0" limited="true" range="-2.2689 2.2689" damping="0" frictionloss="0" armature="0.015" />
+          <geom name="visual_pitch01_leg_b_l_link_0" type="mesh" mesh="visual_pitch01_leg_b_l_link_0" pos="0 0 0" quat="1 0 0 0" contype="0" conaffinity="0" group="2" density="0" rgba="0.75 0.75 0.75 1" />
+          <geom name="collision_pitch01_leg_b_l_link_0" pos="-0.090345789999999995 0.095552869999999998 -0.072111149999999999" quat="0.37609061472202798 -0.0023771785656930642 0.92651657921816077 -0.010827140617523533" contype="2" conaffinity="3" condim="3" group="1" density="0" friction="1 0.005 0.0001" solref="0.004 1" solimp="0.95 0.99 0.001" margin="0" rgba="0.2 0.7 0.8 0.5" type="box" size="0.055608345000000003 0.020997004999999999 0.031239349999999999" />
+          <geom name="collision_pitch01_leg_b_l_link_1" pos="0 0.096882650000000001 0" quat="0.70710678005337235 0.70710678231972268 0 0" contype="2" conaffinity="3" condim="3" group="1" density="0" friction="1 0.005 0.0001" solref="0.004 1" solimp="0.95 0.99 0.001" margin="0" rgba="0.2 0.7 0.8 0.5" type="cylinder" size="0.045499999999999999 0.024982447654008866" />
+          <body name="pitch02_leg_b_l_link" pos="-0.14141999999999999 0.093900999999999998 -0.14141999999999999" quat="1 0 0 0">
+            <inertial pos="0.060927617118218397 1.2733535664777299e-07 -0.043942074792266902" mass="0.174276656603601" fullinertia="0.00041499307641034902 0.000918727379982927 0.00051971568716490996 3.3472511755479401e-09 0.000433607416606295 -2.8000603834925298e-09" />
+            <joint name="pitch02_leg_b_l_joint" type="hinge" pos="0 0 0" axis="0 1 0" limited="true" range="-1.0472 0.8727" damping="0" frictionloss="0" armature="0.012" />
+            <geom name="visual_pitch02_leg_b_l_link_0" type="mesh" mesh="visual_pitch02_leg_b_l_link_0" pos="0 0 0" quat="1 0 0 0" contype="0" conaffinity="0" group="2" density="0" rgba="0.75 0.75 0.75 1" />
+            <geom name="collision_pitch02_leg_b_l_link_0" pos="0.030620749999999999 6.1080000000000005e-05 -0.015105489999999999" quat="0.37129329972052028 0.59693439055587616 0.6013199792426922 0.37976953737484109" contype="2" conaffinity="3" condim="3" group="1" density="0" friction="1 0.005 0.0001" solref="0.004 1" solimp="0.95 0.99 0.001" margin="0" rgba="0.2 0.7 0.8 0.5" type="cylinder" size="0.019695527039376486 0.063632570342288017" />
+            <geom name="collision_pitch02_leg_b_l_link_1" pos="0.10408236999999999 -0.00013425000000000001 -0.072687639999999998" quat="0.25351811268548308 0.65976673546508657 0.66008030776597093 0.25442171411598119" contype="2" conaffinity="3" condim="3" group="1" density="0" friction="1 0.005 0.0001" solref="0.004 1" solimp="0.95 0.99 0.001" margin="0" rgba="0.2 0.7 0.8 0.5" type="cylinder" size="0.014037776687394666 0.038187430773182957" />
+            <geom name="collision_pitch02_leg_b_l_link_2" pos="0.13521996 0.00062104 -0.12183386" quat="0.13558203388751722 0.69652853091661782 0.69431616378690786 0.11996075362506661" contype="2" conaffinity="3" condim="3" group="1" density="0" friction="1 0.005 0.0001" solref="0.004 1" solimp="0.95 0.99 0.001" margin="0" rgba="0.2 0.7 0.8 0.5" type="cylinder" size="0.017068850976951419 0.032008384714095339" />
+            <body name="pitch03_leg_b_l_link" pos="0.14777999999999999 0.0099801000000000004 -0.14532" quat="1 0 0 0">
+              <inertial pos="-0.0062389754923143099 -0.0099895105478086908 -0.0093186785437622804" mass="0.0359214394654757" fullinertia="5.1954700638789703e-06 7.7488932196731402e-06 8.0451220223536607e-06 1.7610580954378301e-10 -1.7585540818229101e-09 3.6949544211473099e-11" />
+              <geom name="visual_pitch03_leg_b_l_link_0" type="mesh" mesh="visual_pitch03_leg_b_l_link_0" pos="0 0 0" quat="1 0 0 0" contype="0" conaffinity="0" group="2" density="0" rgba="0.75 0.75 0.75 1" />
+              <geom name="collision_pitch03_leg_b_l_link_0" pos="-0.0061592000000000001 -0.0099739200000000007 -0.0045751999999999998" quat="1 0 0 0" contype="2" conaffinity="3" condim="3" group="1" density="0" friction="1 0.005 0.0001" solref="0.004 1" solimp="0.95 0.99 0.001" margin="0" rgba="0.2 0.7 0.8 0.5" type="sphere" size="0.0235" />
+            </body>
+          </body>
+        </body>
+      </body>
+      <body name="roll_leg_b_r_link" pos="-0.1825 -0.044999999999999998 0" quat="1 0 0 0">
+        <inertial pos="0.032658377699399499 0.013790270758146501 9.0960091651949004e-12" mass="0.108848812258547" fullinertia="3.84682044367547e-05 9.7773088224210598e-05 0.000100758798008825 2.5074660032125801e-05 7.0151103360539297e-15 -1.3891403081279101e-10" />
+        <joint name="roll_leg_b_r_joint" type="hinge" pos="0 0 0" axis="1 0 0" limited="true" range="-0.733 0.733" damping="0" frictionloss="0" armature="0.01" />
+        <geom name="visual_roll_leg_b_r_link_0" type="mesh" mesh="visual_roll_leg_b_r_link_0" pos="0 0 0" quat="1 0 0 0" contype="0" conaffinity="0" group="2" density="0" rgba="0.75 0.75 0.75 1" />
+        <body name="pitch01_leg_b_r_link" pos="0 0 0" quat="1 0 0 0">
+          <inertial pos="-0.0236338255505938 -0.056854963898531702 -0.018098731074183701" mass="1.71106527100677" fullinertia="0.0020470747056696502 0.0037548470524301999 0.00232007602172916 1.0407983985895e-05 -0.00112494418894668 9.7363086110844308e-06" />
+          <joint name="pitch01_leg_b_r_joint" type="hinge" pos="0 0 0" axis="0 1 0" limited="true" range="-2.2689 2.2689" damping="0" frictionloss="0" armature="0.015" />
+          <geom name="visual_pitch01_leg_b_r_link_0" type="mesh" mesh="visual_pitch01_leg_b_r_link_0" pos="0 0 0" quat="1 0 0 0" contype="0" conaffinity="0" group="2" density="0" rgba="0.75 0.75 0.75 1" />
+          <geom name="collision_pitch01_leg_b_r_link_0" pos="-0.092872280000000001 -0.097537349999999995 -0.066638340000000004" quat="0.31226734153962893 0.015919365148122182 0.94976302290351 0.013633838279816112" contype="2" conaffinity="3" condim="3" group="1" density="0" friction="1 0.005 0.0001" solref="0.004 1" solimp="0.95 0.99 0.001" margin="0" rgba="0.2 0.7 0.8 0.5" type="box" size="0.056399165000000001 0.018386960000000001 0.025137244999999999" />
+          <geom name="collision_pitch01_leg_b_r_link_1" pos="0 -0.096826590000000004 0" quat="0.70710678005337235 0.70710678231972268 0 0" contype="2" conaffinity="3" condim="3" group="1" density="0" friction="1 0.005 0.0001" solref="0.004 1" solimp="0.95 0.99 0.001" margin="0" rgba="0.2 0.7 0.8 0.5" type="cylinder" size="0.045499999999999999 0.024935844272375107" />
+          <body name="pitch02_leg_b_r_link" pos="-0.14050000000000001 -0.093898999999999996 -0.14233000000000001" quat="1 0 0 0">
+            <inertial pos="0.0609361564532317 1.27354207957175e-07 -0.043930230809359101" mass="0.174276654241066" fullinertia="0.000414824513839971 0.00091872737023830295 0.00051988424026761697 3.3478740292415799e-09 0.00043358702404761501 -2.7993165374495099e-09" />
+            <joint name="pitch02_leg_b_r_joint" type="hinge" pos="0 0 0" axis="0 1 0" limited="true" range="-1.0472 0.8727" damping="0" frictionloss="0" armature="0.012" />
+            <geom name="visual_pitch02_leg_b_r_link_0" type="mesh" mesh="visual_pitch02_leg_b_r_link_0" pos="0 0 0" quat="1 0 0 0" contype="0" conaffinity="0" group="2" density="0" rgba="0.75 0.75 0.75 1" />
+            <geom name="collision_pitch02_leg_b_r_link_0" pos="0.030623540000000001 6.1080000000000005e-05 -0.01509947" quat="0.37134819627189136 0.59690295982343988 0.60127846957684317 0.37983098307399721" contype="2" conaffinity="3" condim="3" group="1" density="0" friction="1 0.005 0.0001" solref="0.004 1" solimp="0.95 0.99 0.001" margin="0" rgba="0.2 0.7 0.8 0.5" type="cylinder" size="0.019695527203034521 0.06363241171804776" />
+            <geom name="collision_pitch02_leg_b_r_link_1" pos="0.10471411 -0.00018566000000000001 -0.072218790000000005" quat="0.24626574819584823 0.66238519035216314 0.66283209347515348 0.24749274075619543" contype="2" conaffinity="3" condim="3" group="1" density="0" friction="1 0.005 0.0001" solref="0.004 1" solimp="0.95 0.99 0.001" margin="0" rgba="0.2 0.7 0.8 0.5" type="cylinder" size="0.013981020284004844 0.038406732062219437" />
+            <geom name="collision_pitch02_leg_b_r_link_2" pos="0.13524359 0.00062107999999999998 -0.12180746000000001" quat="0.13565629591012796 0.6964877984488298 0.69433197830023419 0.12002174761904311" contype="2" conaffinity="3" condim="3" group="1" density="0" friction="1 0.005 0.0001" solref="0.004 1" solimp="0.95 0.99 0.001" margin="0" rgba="0.2 0.7 0.8 0.5" type="cylinder" size="0.017068857307713434 0.032008544100160352" />
+            <body name="pitch03_leg_b_r_link" pos="0.14781 -0.0099994999999999997 -0.14529" quat="1 0 0 0">
+              <inertial pos="-0.0062371640576148997 0.0099899976444510208 -0.0093198910303846604" mass="0.0359214394557321" fullinertia="5.1954708536859803e-06 7.7488932134415408e-06 8.0451212351287697e-06 1.7610067751338201e-10 -2.3124403128170499e-09 3.6982174761492299e-11" />
+              <geom name="visual_pitch03_leg_b_r_link_0" type="mesh" mesh="visual_pitch03_leg_b_r_link_0" pos="0 0 0" quat="1 0 0 0" contype="0" conaffinity="0" group="2" density="0" rgba="0.75 0.75 0.75 1" />
+              <geom name="collision_pitch03_leg_b_r_link_0" pos="-0.0061584600000000001 0.01000559 -0.0045761300000000003" quat="1 0 0 0" contype="2" conaffinity="3" condim="3" group="1" density="0" friction="1 0.005 0.0001" solref="0.004 1" solimp="0.95 0.99 0.001" margin="0" rgba="0.2 0.7 0.8 0.5" type="sphere" size="0.0235" />
+            </body>
+          </body>
+        </body>
+      </body>
+      <body name="head_shake_link" pos="0.22258 0 0.15143999999999999" quat="0.97837664463646234 0 0.20683119017666937 0">
+        <inertial pos="0.010982261240904999 -0.00093665291310750405 -0.011575032727139299" mass="0.099654681183653" fullinertia="2.8008791875308598e-05 2.6523038471285998e-05 3.8037240811829301e-05 -5.52244331510049e-07 -3.8713132306038197e-06 1.6105408400000199e-06" />
+        <geom name="visual_head_shake_link_0" type="mesh" mesh="visual_head_shake_link_0" pos="0 0 0" quat="1 0 0 0" contype="0" conaffinity="0" group="2" density="0" rgba="0.75 0.75 0.75 1" />
+        <body name="head_nod_link" pos="0 0 0" quat="1 0 0 0">
+          <inertial pos="-0.016558607677573799 -0.000271874109657431 0.053019595445081398" mass="1.06868280431115" fullinertia="0.0013558975851868701 0.0021714895126013602 0.0028271747179147801 -8.4263031161694006e-06 -0.000188932397885409 -4.5698163355763504e-06" />
+          <geom name="visual_head_nod_link_0" type="mesh" mesh="visual_head_nod_link_0" pos="0 0 0" quat="1 0 0 0" contype="0" conaffinity="0" group="2" density="0" rgba="0.75 0.75 0.75 1" />
+          <geom name="collision_head_nod_link_0" pos="0.0015511500000000001 -0.00039198 0.035754849999999998" quat="1 0 0 0" contype="2" conaffinity="3" condim="3" group="1" density="0" friction="1 0.005 0.0001" solref="0.004 1" solimp="0.95 0.99 0.001" margin="0" rgba="0.2 0.7 0.8 0.5" type="sphere" size="0.12017707156025949" />
+          <body name="camera_head_mounted_link" pos="0.11423 -0.00020010000000000001 0.046328000000000001" quat="0.97840042375376468 0 -0.20671867549511291 0">
+            <inertial pos="-0.015909406193275001 -0.000352114890905002 0.0011264202574254899" mass="0.0109821660081325" fullinertia="1.6929811342317401e-06 9.8600026007911802e-07 1.66014732869558e-06 -1.6401455773524201e-08 -5.4365436623232998e-09 -6.92446978843246e-08" />
+            <geom name="visual_camera_head_mounted_link_0" type="mesh" mesh="visual_camera_head_mounted_link_0" pos="0 0 0" quat="1 0 0 0" contype="0" conaffinity="0" group="2" density="0" rgba="0.75 0.75 0.75 1" />
+          </body>
+        </body>
+      </body>
+    </body>
+  </worldbody>
+  <statistic center="1.0 0.7 1.0" extent="0.8" />
+  <visual>
+    <headlight diffuse="0.6 0.6 0.6" ambient="0.1 0.1 0.1" specular="0.9 0.9 0.9" />
+    <rgba haze="0.15 0.25 0.35 1" />
+    <global azimuth="-140" elevation="-20" />
+  </visual>
+  <actuator>
+    <motor name="motor_roll_leg_f_l_joint" joint="roll_leg_f_l_joint" gear="1" ctrllimited="false" forcelimited="false" />
+    <motor name="motor_pitch01_leg_f_l_joint" joint="pitch01_leg_f_l_joint" gear="1" ctrllimited="false" forcelimited="false" />
+    <motor name="motor_pitch02_leg_f_l_joint" joint="pitch02_leg_f_l_joint" gear="1" ctrllimited="false" forcelimited="false" />
+    <motor name="motor_roll_leg_f_r_joint" joint="roll_leg_f_r_joint" gear="1" ctrllimited="false" forcelimited="false" />
+    <motor name="motor_pitch01_leg_f_r_joint" joint="pitch01_leg_f_r_joint" gear="1" ctrllimited="false" forcelimited="false" />
+    <motor name="motor_pitch02_leg_f_r_joint" joint="pitch02_leg_f_r_joint" gear="1" ctrllimited="false" forcelimited="false" />
+    <motor name="motor_roll_leg_b_l_joint" joint="roll_leg_b_l_joint" gear="1" ctrllimited="false" forcelimited="false" />
+    <motor name="motor_pitch01_leg_b_l_joint" joint="pitch01_leg_b_l_joint" gear="1" ctrllimited="false" forcelimited="false" />
+    <motor name="motor_pitch02_leg_b_l_joint" joint="pitch02_leg_b_l_joint" gear="1" ctrllimited="false" forcelimited="false" />
+    <motor name="motor_roll_leg_b_r_joint" joint="roll_leg_b_r_joint" gear="1" ctrllimited="false" forcelimited="false" />
+    <motor name="motor_pitch01_leg_b_r_joint" joint="pitch01_leg_b_r_joint" gear="1" ctrllimited="false" forcelimited="false" />
+    <motor name="motor_pitch02_leg_b_r_joint" joint="pitch02_leg_b_r_joint" gear="1" ctrllimited="false" forcelimited="false" />
+  </actuator>
+</mujoco>

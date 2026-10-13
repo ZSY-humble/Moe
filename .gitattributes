@@ -1,0 +1,10 @@
+# PDF 和模型网格按二进制保存，避免被当作文本差异处理。
+*.pdf binary
+*.stl binary
+*.STL binary
+
+# 来源 URDF 保留原始换行，便于按导入清单核对文件摘要。
+*.urdf -text whitespace=cr-at-eol
+resources/race/** -text
+# 历史模型按来源归档，保留导出器注释中的尾部空白。
+resources/race/urdf/22nm_dog_0710.urdf whitespace=cr-at-eol,-blank-at-eol

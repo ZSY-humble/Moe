@@ -84,3 +84,6 @@ logs/
 **/logs/
 outputs/
 .omx/
+
+# Race 的 USD 由原 URDF 自动转换，保留源模型并忽略生成缓存。
+resources/race/usd/

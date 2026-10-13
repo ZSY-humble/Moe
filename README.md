@@ -1,5 +1,5 @@
 <div align="center">
-	<h1 align="center">Go2 RL RobotLab</h1>
+	<h1 align="center">Race / Go2 RL RobotLab</h1>
 	<a href="https://robogauge.github.io/complete/">
 		<img src="https://img.shields.io/badge/Project-Page-green.svg" alt="Project Page"/>
 	</a>
@@ -15,6 +15,15 @@
 </div>
 
 ## Overview
+
+本地版本已接入 **Race 0710**，默认训练和回放任务为
+`RobotLab-Race-v0`，使用现有 MoE CTS 框架。模型、优化初始姿态、
+原 PD 参数、奖励、接触传感器、策略导出和 MuJoCo 部署均已适配。
+原 Go2 任务仍可显式选择 `RobotLab-Go2-v0`；下方论文、演示和基准
+结果来自原 Go2 项目，不代表 Race 训练结果。
+
+Race 的完整命令、参数入口和验证说明见
+[Race 训练说明](resources/race/TRAINING.md)。
 
 Train a Unitree Go2 robot in IsaacLab, and deploy policy to MuJoCo for Sim2Sim. For more, see the [project page](https://robogauge.github.io/complete/).
 
@@ -180,19 +189,34 @@ python scripts/rsl_rl/train.py \
 
 ## Training and Evaluation
 
-Run the following commands:
+先激活已安装的 Conda 环境。以下命令针对 RTX 4060 8 GB：
 
 ```bash
-# Train
-python scripts/rsl_rl/train.py --task=RobotLab-Go2-v0 --headless
+conda activate go2_rl_robotlab
+export OMNI_KIT_ACCEPT_EULA=YES
 
-# Evaluate
-python scripts/rsl_rl/play.py --task=RobotLab-Go2-v0
+# Race 粗糙地形训练；省略 --task 时同样默认训练 Race。
+python scripts/rsl_rl/train.py --task RobotLab-Race-v0 \
+    --headless --device cuda:0 --num_envs 256 --logger tensorboard
+
+# 可先训练平地，两个任务的观测和网络维度相同。
+python scripts/rsl_rl/train.py --task RobotLab-Race-Flat-v0 \
+    --headless --device cuda:0 --num_envs 256 --logger tensorboard
+
+# 回放最近一次 Race 粗糙地形训练，并导出策略。
+python scripts/rsl_rl/play.py --task RobotLab-Race-v0 --num_envs 4
 ```
+
+检查点分别位于 `logs/rsl_rl/race_moe_cts/` 和
+`logs/rsl_rl/race_flat_moe_cts/`。回放会导出
+`exported/policy.pt`、`policy.onnx` 和 `deployment.json`。
+短时流程验证不代表策略已学会稳定步行；正式训练默认 10,000 轮。
 
 ---
 
-### Training with RoboGauge Evaluation
+### 原 Go2 的 RoboGauge Evaluation
+
+下面的 RoboGauge 接口使用 Go2 专用评估任务，当前 Race 不使用该接口。
 
 [RoboGauge](https://github.com/wty-yy/robogauge) provides an asynchronous suite for evaluating motion-control reinforcement learning policies, helping you select the best model. After installing RoboGauge by following the [installation guide](https://github.com/wty-yy/robogauge?tab=readme-ov-file#installation), start the RoboGauge server:
 
@@ -225,17 +249,17 @@ The default task settings are defined in the following files:
 
 1. **Environment configuration**
    ```
-   source/robot_lab/robot_lab/tasks/go2/env_cfg.py
+   source/robot_lab/robot_lab/tasks/race/env_cfg.py
    ```
 
 2. **RL algorithm configuration**
    ```
-   source/robot_lab/robot_lab/tasks/go2/rsl_rl_cfg.py
+   source/robot_lab/robot_lab/tasks/race/rsl_rl_cfg.py
    ```
 
 3. **Task registration**
    ```
-   source/robot_lab/robot_lab/tasks/go2/__init__.py
+   source/robot_lab/robot_lab/tasks/race/__init__.py
    ```
 
 ### Runtime Overrides
@@ -244,12 +268,12 @@ In addition to the default configuration files, `train.py` and `play.py` support
 
 ```bash
 python scripts/rsl_rl/train.py \
-   --task=RobotLab-Go2-v0 \
+   --task=RobotLab-Race-v0 \
    --headless \
    --experiment_name <YOUR_EXP_NAME> \
    --run_name <YOUR_RUN_NAME> \
    --num_envs <NUM_ENVS> \
-   --checkpoint <PATH_TO_CHECKPOINT>
+   --resume --checkpoint <PATH_TO_CHECKPOINT>
 ```
 
 For more details, refer to the [robot_lab repo](https://github.com/fan-ziqi/robot_lab.git).
@@ -257,6 +281,20 @@ For more details, refer to the [robot_lab repo](https://github.com/fan-ziqi/robo
 ---
 
 ## MuJoCo Sim2Sim
+
+Race 使用回放导出的 TorchScript 策略与同目录部署合同：
+
+```bash
+python deploy/deploy_mujoco/deploy_race.py \
+    --policy logs/rsl_rl/race_moe_cts/<训练目录>/exported/policy.pt \
+    --command 0.2 0 0 --duration 30
+```
+
+部署程序核对机器人、关节顺序、初始角、PD、限位和模型摘要，使用
+20 ms 策略周期、5 ms PD 周期与 1 ms MuJoCo 积分。Go2 旧策略不能
+用于 Race。原 Go2 的部署使用方式如下。
+
+### 原 Go2 部署
 
 Set the `policy_path` in `deploy/deploy_mujoco/configs/go2.yaml`:
 

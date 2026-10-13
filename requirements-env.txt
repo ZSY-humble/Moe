@@ -1,0 +1,14 @@
+# 先从 PyTorch 官方 cu128 源安装 torch、torchvision 和 torchaudio。
+# IsaacLab 的 all 选项固定官方 RSL-RL，无法兼容仓库定制版本。
+isaaclab[isaacsim]==2.3.2.post1
+torch==2.7.0
+torchvision==0.22.0
+torchaudio==2.7.0
+tensordict==0.8.3
+cusrl==1.1.9.post0
+mujoco==3.4.0
+pygame==2.6.1
+pytest
+wheel==0.45.1
+-e source/robot_lab
+-e source/rsl_rl

@@ -1,0 +1,39 @@
+# 参数快照来源：SLR-master/configs/race_config.py；不使用旧发布合同覆盖。
+model_path: "{ROOT_DIR}/resources/race/mjcf/race_pd.xml"
+urdf_path: "{ROOT_DIR}/resources/race/urdf/race.urdf"
+base_name: base_link
+base_init_pos: [0.0, 0.0, 0.36]
+# MuJoCo 四元数顺序为 w, x, y, z。
+base_init_quat: [1.0, 0.0, 0.0, 0.0]
+gravity: [0.0, 0.0, -9.81]
+physics_dt: 0.001
+pd_dt: 0.005
+simulation_duration: 0.0
+joint_names:
+  - roll_leg_f_l_joint
+  - pitch01_leg_f_l_joint
+  - pitch02_leg_f_l_joint
+  - roll_leg_f_r_joint
+  - pitch01_leg_f_r_joint
+  - pitch02_leg_f_r_joint
+  - roll_leg_b_l_joint
+  - pitch01_leg_b_l_joint
+  - pitch02_leg_b_l_joint
+  - roll_leg_b_r_joint
+  - pitch01_leg_b_r_joint
+  - pitch02_leg_b_r_joint
+default_angles: [0.0, -0.1, 0.3, 0.0, -0.1, 0.3,
+                 0.0, 0.0, 0.3, 0.0, 0.0, 0.3]
+kps: [19.0, 30.0, 32.0, 19.0, 30.0, 32.0,
+      19.0, 30.0, 32.0, 19.0, 30.0, 32.0]
+kds: [0.80, 0.85, 0.70, 0.80, 0.85, 0.70,
+      0.80, 0.85, 0.70, 0.80, 0.85, 0.70]
+torque_limits: [22.0, 22.0, 33.0, 22.0, 22.0, 33.0,
+                22.0, 22.0, 33.0, 22.0, 22.0, 33.0]
+# 电机 PD 先限幅，再单独加入被动阻尼与摩擦，保持原控制次序。
+passive_damping: [0.10, 0.20, 0.15, 0.10, 0.20, 0.15,
+                  0.10, 0.20, 0.15, 0.10, 0.20, 0.15]
+passive_friction: [0.05, 0.10, 0.08, 0.05, 0.10, 0.08,
+                   0.05, 0.10, 0.08, 0.05, 0.10, 0.08]
+armature: [0.010, 0.015, 0.012, 0.010, 0.015, 0.012,
+           0.010, 0.015, 0.012, 0.010, 0.015, 0.012]

@@ -1,0 +1,429 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Go2 碰撞模型查看器</title>
+<style>
+  :root { color-scheme: dark; font-family: system-ui, sans-serif; }
+  * { box-sizing: border-box; }
+  body { margin: 0; background: #10151c; color: #e4eaf1; }
+  main { max-width: 1180px; margin: auto; padding: 28px 24px; }
+  header { display: flex; justify-content: space-between; gap: 16px;
+    align-items: baseline; margin-bottom: 20px; }
+  h1 { font-size: 26px; margin: 0 0 8px; font-weight: 650; }
+  p { margin: 0; color: #aab5c3; font-size: 14px; line-height: 1.6; }
+  .tag { font-size: 12px; color: #8cbbd7; letter-spacing: .07em; }
+  .toolbar { display: flex; align-items: end; flex-wrap: wrap; gap: 14px;
+    margin: 20px 0 14px; }
+  label { display: flex; flex-direction: column; gap: 7px;
+    font-size: 12px; color: #acb7c5; }
+  select, button { font: inherit; color: #e4eaf1; background: #202934;
+    border: 1px solid #374250; border-radius: 6px; padding: 9px 12px; }
+  select { min-width: 142px; }
+  button { cursor: pointer; }
+  button:hover { background: #2b3846; }
+  label.check { flex-direction: row; align-items: center; padding-bottom: 10px;
+    gap: 6px; font-size: 13px; }
+  input { accent-color: #71b8d4; }
+  .stage { position: relative; background: #141c25;
+    border: 1px solid #2b3643; border-radius: 10px; overflow: hidden; }
+  canvas { display: block; width: 100%; height: 550px; touch-action: none;
+    cursor: grab; }
+  canvas:active { cursor: grabbing; }
+  .caption { position: absolute; top: 16px; left: 18px;
+    pointer-events: none; font-size: 13px; color: #d3dce7; }
+  .caption small { display: block; margin-top: 6px; color: #94a5b7; }
+  .legend { display: flex; gap: 20px; margin: 14px 0 22px;
+    font-size: 13px; color: #bdc7d4; flex-wrap: wrap; }
+  .legend span { display: inline-flex; align-items: center; gap: 7px; }
+  .swatch { display: inline-block; width: 10px; height: 10px; }
+  .box { background: #6aa8de; }
+  .cylinder { background: #74c5ac; border-radius: 3px; }
+  .sphere { background: #e5c378; border-radius: 50%; }
+  .details { display: grid; grid-template-columns: 1fr 1.1fr; gap: 28px; }
+  .details h2 { font-size: 15px; margin: 0 0 12px; font-weight: 600; }
+  .details p { font-size: 13px; }
+  #geometry { width: 100%; font-size: 13px; }
+  #geometry-detail { margin-top: 10px; min-height: 58px; }
+  .joints { display: grid; grid-template-columns: 1fr 1fr; gap: 8px 20px;
+    font-size: 13px; color: #b9c5d2; margin-top: 12px; }
+  .joints strong { font-weight: 500; color: #e0e7ef; }
+  footer { margin-top: 22px; border-top: 1px solid #2b3643;
+    padding-top: 13px; font-size: 12px; color: #8c9baa; line-height: 1.7; }
+  code { font-family: ui-monospace, monospace; font-size: 12px; }
+  :focus-visible { outline: 2px solid #8cc6e4; outline-offset: 3px; }
+  @media (max-width: 640px) {
+    main { padding: 18px 14px; }
+    header { display: block; }
+    .tag { display: block; margin-top: 12px; }
+    .details { grid-template-columns: 1fr; gap: 20px; }
+    .toolbar { gap: 12px; }
+    select { min-width: 120px; }
+    canvas { height: 410px; }
+    h1 { font-size: 22px; }
+  }
+</style>
+</head>
+<body>
+<main>
+  <header>
+    <div>
+      <h1>宇树 Go2 · 碰撞模型</h1>
+      <p>初始关节姿态下的真实碰撞几何。拖动旋转，滚轮缩放，点击查看尺寸。</p>
+    </div>
+    <span class="tag">12 个关节 · 离线三维查看</span>
+  </header>
+  <div class="toolbar">
+    <label id="pose-control" style="display:none">姿态对照
+      <select id="pose"></select>
+    </label>
+    <label>模型来源
+      <select id="source">
+        <option value="mjcf">MuJoCo / MJCF</option>
+        <option value="urdf">IsaacLab / URDF</option>
+      </select>
+    </label>
+    <label>显示部位
+      <select id="part">
+        <option value="all">全部碰撞体</option>
+        <option value="body">躯干与头部</option>
+        <option value="FL">左前腿 FL</option>
+        <option value="FR">右前腿 FR</option>
+        <option value="RL">左后腿 RL</option>
+        <option value="RR">右后腿 RR</option>
+      </select>
+    </label>
+    <label>视角
+      <select id="view">
+        <option value="orbit">斜视</option>
+        <option value="front">正视（沿 X）</option>
+        <option value="side">侧视（沿 Y）</option>
+        <option value="top">俯视（沿 Z）</option>
+      </select>
+    </label>
+    <label class="check"><input id="wire" type="checkbox" checked>轮廓线</label>
+    <label class="check"><input id="ground" type="checkbox" checked>地面网格</label>
+    <button id="reset" type="button">恢复视角</button>
+  </div>
+  <div class="stage">
+    <canvas id="scene" aria-label="可旋转的 Go2 三维碰撞模型"
+      role="img">浏览器需要支持 Canvas 2D 才能展示三维模型。</canvas>
+    <div class="caption"><span id="count"></span><small id="height"></small></div>
+  </div>
+  <div class="legend">
+    <span><i class="swatch box"></i>盒体：躯干 / 大腿</span>
+    <span><i class="swatch cylinder"></i>圆柱：髋部 / 小腿 / 头部</span>
+    <span><i class="swatch sphere"></i>球体：足端 / 头部</span>
+  </div>
+  <section id="stance-result" style="display:none; margin-bottom:22px">
+    <p id="stance-loads"></p>
+    <p id="stance-patch"></p>
+  </section>
+  <section class="details">
+    <div>
+      <h2>碰撞体尺寸与位置</h2>
+      <label>选择碰撞体<select id="geometry"></select></label>
+      <p id="geometry-detail" aria-live="polite"></p>
+    </div>
+    <div>
+      <h2 id="joint-caption">初始关节角 · rad</h2>
+      <p>每条腿依次为髋关节、大腿关节、小腿关节。</p>
+      <div class="joints" id="joints"></div>
+    </div>
+  </section>
+  <footer>
+    <div>来源：<code id="path"></code>；姿态配置：
+      <code id="pose-path">deploy/deploy_mujoco/configs/go2.yaml</code></div>
+    <div>这是初始姿态的几何展示；站立动力学请运行纯 PD 查看指令。
+      MJCF 与 URDF 的尺寸和固定连杆变换分别取自各自文件。</div>
+  </footer>
+</main>
+<script id="model-data" type="application/json">__GO2_MODEL_DATA__</script>
+<script>
+"use strict";
+(() => {
+  let data = JSON.parse(document.getElementById("model-data").textContent);
+  const poses = data.poses;
+  if (poses) data = Object.values(poses)[0];
+  const canvas = document.getElementById("scene");
+  const ctx = canvas.getContext("2d");
+  const $ = id => document.getElementById(id);
+  const add = (a, b) => a.map((v, i) => v + b[i]);
+  const sub = (a, b) => a.map((v, i) => v - b[i]);
+  const scale = (a, s) => a.map(v => v * s);
+  const dot = (a, b) => a.reduce((sum, v, i) => sum + v * b[i], 0);
+  const cross = (a, b) => [a[1]*b[2]-a[2]*b[1],
+    a[2]*b[0]-a[0]*b[2], a[0]*b[1]-a[1]*b[0]];
+  const normalize = a => scale(a, 1 / (Math.hypot(...a) || 1));
+  const names = {FL: "左前腿", FR: "右前腿", RL: "左后腿", RR: "右后腿"};
+  const colors = {box: [106, 168, 222], cylinder: [116, 197, 172],
+    sphere: [229, 195, 120]};
+  let yaw = 2.35, pitch = .42, distance = 1.75;
+  let selected = null, width = 0, height = 0, rendered = [];
+  let drag = null, scheduled = false;
+  let source = data.sources.mjcf;
+  const target = [.02, 0, data.height - .16];
+
+  function faces(geom) {
+    const s = geom.size;
+    const polygons = [];
+    if (geom.shape === "box") {
+      const v = [[-1,-1,-1],[1,-1,-1],[1,1,-1],[-1,1,-1],
+        [-1,-1,1],[1,-1,1],[1,1,1],[-1,1,1]];
+      for (const ids of [[0,3,2,1],[4,5,6,7],[0,1,5,4],
+        [1,2,6,5],[2,3,7,6],[3,0,4,7]]) {
+        polygons.push(ids.map(i => v[i].map((value,j) => value*s[j])));
+      }
+    } else if (geom.shape === "cylinder") {
+      const a = [], b = [], n = 24;
+      for (let i = 0; i < n; i++) {
+        const t = i * 2 * Math.PI / n;
+        a.push([s[0]*Math.cos(t), s[0]*Math.sin(t), -s[1]]);
+        b.push([s[0]*Math.cos(t), s[0]*Math.sin(t), s[1]]);
+      }
+      polygons.push([...a].reverse(), b);
+      for (let i = 0; i < n; i++) {
+        const j = (i + 1) % n;
+        polygons.push([a[i], a[j], b[j], b[i]]);
+      }
+    } else {
+      const n = 20, rings = 10;
+      const point = (i, j) => {
+        const theta = i * Math.PI / rings, phi = j * 2 * Math.PI / n;
+        return [s[0]*Math.sin(theta)*Math.cos(phi),
+          s[0]*Math.sin(theta)*Math.sin(phi), s[0]*Math.cos(theta)];
+      };
+      for (let i = 0; i < rings; i++) {
+        for (let j = 0; j < n; j++) {
+          polygons.push([point(i,j), point(i+1,j),
+            point(i+1,j+1), point(i,j+1)]);
+        }
+      }
+    }
+    const m = geom.rotation;
+    return polygons.map(face => face.map(v => add(geom.position, [
+      m[0]*v[0]+m[1]*v[1]+m[2]*v[2],
+      m[3]*v[0]+m[4]*v[1]+m[5]*v[2],
+      m[6]*v[0]+m[7]*v[1]+m[8]*v[2],
+    ])));
+  }
+
+  for (const pose of Object.values(poses || {initial: data})) {
+    for (const entry of Object.values(pose.sources)) {
+      entry.geometries.forEach(geom => { geom.faces = faces(geom); });
+    }
+  }
+  function visible(geom) {
+    const part = $("part").value;
+    const geometryPart = geom.part
+      || (/^(FL|FR|RL|RR)_/.test(geom.link) ? geom.link.slice(0,2) : "body");
+    if (part === "all") return true;
+    return geometryPart === part;
+  }
+  function label(geom) {
+    const suffix = {box: "盒体", cylinder: "圆柱", sphere: "球体"};
+    return `${geom.link} · ${suffix[geom.shape]} · ${geom.name}`;
+  }
+  function updateDetail() {
+    const geom = source.geometries.find(g => g.name === selected);
+    if (!geom) {
+      $("geometry-detail").textContent = "点击模型中的碰撞体，查看真实尺寸。";
+      $("geometry").value = "";
+      return;
+    }
+    $("geometry").value = selected;
+    const mm = value => (value*1000).toFixed(1);
+    const size = geom.shape === "box"
+      ? `完整边长 ${geom.size.map(v => mm(2*v)).join(" × ")} mm`
+      : geom.shape === "cylinder"
+        ? `半径 ${mm(geom.size[0])} mm，完整长度 ${mm(2*geom.size[1])} mm`
+        : `半径 ${mm(geom.size[0])} mm`;
+    $("geometry-detail").textContent = `${geom.link}：${size}；`
+      + `世界坐标中心 [${geom.position.map(v => v.toFixed(3)).join(", ")}] m。`;
+  }
+  function refreshSource() {
+    source = data.sources[$("source").value];
+    selected = null;
+    $("path").textContent = source.path;
+    $("count").textContent = `${source.label} · ${source.geometries.length} 个碰撞体`;
+    $("height").textContent = `${data.stateLabel || "初始"}基座高度 `
+      + `${data.height.toFixed(3)} m · X 前 / Y 左 / Z 上`;
+    if (data.configPath) $("pose-path").textContent = data.configPath;
+    $("joint-caption").textContent = data.jointCaption || "初始关节角 · rad";
+    if (data.metrics) {
+      $("stance-result").style.display = "block";
+      $("stance-loads").textContent = "20 秒 PD 实测，末 2 秒平均承重"
+        + "（左前 / 右前 / 左后 / 右后）："
+        + data.metrics.loads.map(v => v.toFixed(1)).join(" / ") + " N；"
+        + `载荷变异系数 ${(data.metrics.cv * 100).toFixed(1)}%。`;
+      $("stance-patch").textContent = "落地后 CAD 底部 1 mm 带投影面积："
+        + data.metrics.patch.map(v => v.toFixed(1)).join(" / ") + " mm²。"
+        + "这是足底几何比较指标；球形碰撞体保持原样，面积不代表压力面积。";
+    }
+    $("geometry").replaceChildren(new Option("点击模型，或从这里选择", ""));
+    source.geometries.filter(visible).forEach(geom => {
+      $("geometry").add(new Option(label(geom), geom.name));
+    });
+    updateDetail();
+    requestDraw();
+  }
+  function requestDraw() {
+    if (scheduled) return;
+    scheduled = true;
+    requestAnimationFrame(() => { scheduled = false; draw(); });
+  }
+  function draw() {
+    const rect = canvas.getBoundingClientRect();
+    width = rect.width; height = rect.height;
+    const dpr = Math.min(window.devicePixelRatio || 1, 2);
+    if (canvas.width !== Math.round(width*dpr)
+      || canvas.height !== Math.round(height*dpr)) {
+      canvas.width = Math.round(width*dpr);
+      canvas.height = Math.round(height*dpr);
+    }
+    ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+    ctx.clearRect(0, 0, width, height);
+    const eye = add(target, [distance*Math.cos(pitch)*Math.cos(yaw),
+      distance*Math.cos(pitch)*Math.sin(yaw), distance*Math.sin(pitch)]);
+    const forward = normalize(sub(target, eye));
+    const right = normalize(cross(forward, [0,0,1]));
+    const up = cross(right, forward);
+    const focal = Math.min(width, height) * 1.45;
+    const project = point => {
+      const relative = sub(point, eye), z = dot(relative, forward);
+      return [width/2 + focal*dot(relative,right)/z,
+        height*.52 - focal*dot(relative,up)/z, z];
+    };
+    const line = (a, b, color, thickness=1) => {
+      a = project(a); b = project(b);
+      if (a[2] <= .01 || b[2] <= .01) return;
+      ctx.beginPath(); ctx.moveTo(a[0],a[1]); ctx.lineTo(b[0],b[1]);
+      ctx.strokeStyle = color; ctx.lineWidth = thickness; ctx.stroke();
+    };
+    if ($("ground").checked) {
+      for (let i = -10; i <= 10; i++) {
+        line([i*.1,-1,0],[i*.1,1,0],"#253341");
+        line([-1,i*.1,0],[1,i*.1,0],"#253341");
+      }
+    }
+    rendered = [];
+    const light = normalize([.4,-.5,1]);
+    for (const geom of source.geometries.filter(visible)) {
+      for (const face of geom.faces) {
+        const points = face.map(project);
+        if (points.some(point => point[2] <= .01)) continue;
+        const normal = normalize(cross(sub(face[1],face[0]),sub(face[2],face[0])));
+        const brightness = .50 + .5*Math.abs(dot(normal,light));
+        const color = geom.name === selected ? [242,242,242] : colors[geom.shape];
+        rendered.push({points, geom,
+          depth: points.reduce((sum,p) => sum+p[2],0)/points.length,
+          color: color.map(c => Math.round(c*brightness))});
+      }
+    }
+    rendered.sort((a,b) => b.depth-a.depth);
+    for (const face of rendered) {
+      ctx.beginPath();
+      face.points.forEach((p,i) => i ? ctx.lineTo(p[0],p[1]) : ctx.moveTo(p[0],p[1]));
+      ctx.closePath(); ctx.fillStyle = `rgb(${face.color.join(",")})`; ctx.fill();
+      if (face.geom.shape === "box" || $("wire").checked) {
+        ctx.strokeStyle = face.geom.name === selected ? "#ffffff" : "#17313a66";
+        ctx.lineWidth = face.geom.name === selected ? 1.2 : .55; ctx.stroke();
+      }
+    }
+    const start = [.5, -.42, .015];
+    for (const [label, vector] of [["X 前",[.18,0,0]],
+      ["Y 左",[0,.18,0]],["Z 上",[0,0,.18]]]) {
+      const end = add(start, vector);
+      line(start,end,"#a8b9cc",1.5);
+      const point = project(end);
+      ctx.fillStyle = "#bdcddd"; ctx.font = "12px system-ui";
+      ctx.fillText(label,point[0]+4,point[1]-4);
+    }
+  }
+  function inside(x, y, polygon) {
+    let result = false;
+    for (let i=0,j=polygon.length-1; i<polygon.length; j=i++) {
+      const a=polygon[i], b=polygon[j];
+      if ((a[1]>y)!==(b[1]>y)
+        && x<(b[0]-a[0])*(y-a[1])/(b[1]-a[1])+a[0]) result=!result;
+    }
+    return result;
+  }
+  canvas.addEventListener("pointerdown", event => {
+    drag = {x: event.clientX, y: event.clientY, moved: false};
+    canvas.setPointerCapture(event.pointerId);
+  });
+  canvas.addEventListener("pointermove", event => {
+    if (!drag) return;
+    const dx=event.clientX-drag.x, dy=event.clientY-drag.y;
+    if (Math.abs(dx)+Math.abs(dy)>2) drag.moved=true;
+    yaw -= dx*.008;
+    pitch = Math.max(-.2,Math.min(1.55,pitch+dy*.006));
+    drag.x=event.clientX; drag.y=event.clientY;
+    requestDraw();
+  });
+  canvas.addEventListener("pointerup", event => {
+    if (drag && !drag.moved) {
+      const rect=canvas.getBoundingClientRect();
+      const x=event.clientX-rect.left,y=event.clientY-rect.top;
+      selected=null;
+      for (let i=rendered.length-1;i>=0;i--) {
+        if (inside(x,y,rendered[i].points)) {
+          selected=rendered[i].geom.name; break;
+        }
+      }
+      updateDetail(); requestDraw();
+    }
+    drag=null;
+  });
+  canvas.addEventListener("pointercancel", () => { drag=null; });
+  canvas.addEventListener("wheel", event => {
+    event.preventDefault();
+    distance=Math.max(.95,Math.min(4,distance*Math.exp(event.deltaY*.001)));
+    requestDraw();
+  }, {passive:false});
+  $("source").addEventListener("change",refreshSource);
+  $("part").addEventListener("change",refreshSource);
+  $("geometry").addEventListener("change",() => {
+    selected=$("geometry").value || null; updateDetail(); requestDraw();
+  });
+  const setView = () => {
+    [yaw,pitch] = {orbit:[2.35,.42],front:[0,.10],
+      side:[-Math.PI/2,.10],top:[-Math.PI/2,1.55]}[$("view").value];
+    distance=1.75; requestDraw();
+  };
+  $("view").addEventListener("change",setView);
+  $("reset").addEventListener("click",() => { $("view").value="orbit"; setView(); });
+  $("wire").addEventListener("change",requestDraw);
+  $("ground").addEventListener("change",requestDraw);
+  function refreshJoints() {
+    $("joints").replaceChildren();
+    for (const [prefix, label] of Object.entries(names)) {
+      const entry=document.createElement("div");
+      const jointNames=data.jointOrder?.[prefix]
+        || ["hip","thigh","calf"].map(joint => `${prefix}_${joint}_joint`);
+      const angles=jointNames.map(joint =>
+        data.joints[joint].toFixed(data.anglePrecision ?? 1));
+      entry.textContent=`${label} ${prefix}：${angles.join(" / ")}`;
+      $("joints").append(entry);
+    }
+  }
+  if (poses) {
+    $("pose-control").style.display = "flex";
+    for (const [key, pose] of Object.entries(poses)) {
+      $("pose").add(new Option(pose.label, key));
+    }
+    $("pose").addEventListener("change", () => {
+      data = poses[$("pose").value];
+      target[2] = data.height - .16;
+      refreshJoints(); refreshSource();
+    });
+  }
+  refreshJoints();
+  new ResizeObserver(requestDraw).observe(canvas);
+  refreshSource();
+})();
+</script>
+</body>
+</html>
