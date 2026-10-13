@@ -62,6 +62,10 @@ cli_args.add_rsl_rl_args(parser)
 AppLauncher.add_app_launcher_args(parser)
 # parse the arguments
 args_cli, hydra_args = parser.parse_known_args()
+if args_cli.keyboard and args_cli.headless:
+    parser.error("键盘回放需要本地窗口，请去掉 --headless。")
+if args_cli.keyboard and args_cli.fix_commands:
+    parser.error("--keyboard 与 --fix_commands 不能同时使用。")
 # always enable cameras to record video
 if args_cli.video:
     args_cli.enable_cameras = True
@@ -194,6 +198,24 @@ def main(env_cfg: ManagerBasedRLEnvCfg | DirectRLEnvCfg | DirectMARLEnvCfg, agen
     if args_cli.fix_commands:
         fix_commands(env_cfg)
 
+    keyboard_ranges = None
+    if args_cli.keyboard:
+        import copy
+
+        keyboard_ranges = copy.deepcopy(env_cfg.commands.base_velocity.ranges)
+        # 启动和复位均从零命令开始，随后由键盘接管。
+        env_cfg.commands.base_velocity = UniformVelocityCommandCfg(
+            asset_name="robot", heading_command=False,
+            rel_standing_envs=0.0, rel_heading_envs=0.0,
+            resampling_time_range=(1.0e9, 1.0e9),
+            ranges=UniformVelocityCommandCfg.Ranges(
+                lin_vel_x=(0.0, 0.0), lin_vel_y=(0.0, 0.0),
+                ang_vel_z=(0.0, 0.0), heading=None,
+            ),
+            debug_vis=True,
+        )
+        env_cfg.curriculum.terrain_levels = None
+
     # create isaac environment
     env = gym.make(args_cli.task, cfg=env_cfg, render_mode="rgb_array" if args_cli.video else None)
 
@@ -218,6 +240,18 @@ def main(env_cfg: ManagerBasedRLEnvCfg | DirectRLEnvCfg | DirectMARLEnvCfg, agen
 
     # wrap around environment for rsl-rl
     env = RslRlVecEnvWrapper(env, clip_actions=agent_cfg.clip_actions)
+
+    keyboard = None
+    if args_cli.keyboard:
+        from keyboard_control import attach_keyboard
+
+        keyboard = Se2Keyboard(Se2KeyboardCfg(
+            v_x_sensitivity=0.5, v_y_sensitivity=0.25,
+            omega_z_sensitivity=0.5, sim_device=env.unwrapped.device,
+        ))
+        attach_keyboard(env.unwrapped, keyboard, keyboard_ranges)
+        print("[INFO] 点击仿真窗口后按住方向键移动，Z/X 转向；"
+              "松键停止，L 清零。速度限制沿用训练配置。")
 
     print(f"[INFO]: Loading model checkpoint from: {resume_path}")
     # load previously trained model

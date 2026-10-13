@@ -60,6 +60,26 @@ python scripts/rsl_rl/train.py --task RobotLab-Race-v0 \
 
 ## 回放与导出
 
+### 本地键盘回放服务器权重
+
+将服务器本次运行目录中的 `model_600.pt` 和完整 `params/` 目录下载到
+本地同一个目录，例如 `logs/server/race_600/`。其中 `params/env.yaml`
+用于验证模型来源、关节顺序和控制参数，不能只复制权重。
+
+在本地 RTX 机器上运行（需要图形桌面，不加 `--headless`）：
+
+```bash
+python scripts/rsl_rl/play.py \
+    --task RobotLab-Race-Flat-v0 --num_envs 1 --device cuda:0 \
+    --checkpoint logs/server/race_600/model_600.pt \
+    --keyboard --real-time
+```
+
+点击仿真窗口让其获得焦点，按住 `↑/↓` 前进／后退，`←/→` 左移／
+右移，`Z/X` 左转／右转；松键停止，`L` 清零。键盘速度为前后
+0.5 m/s、横向 0.25 m/s、转向 0.5 rad/s，并按训练的速度范围限幅。
+该功能只作用于回放实例，不修改训练奖励、控制参数或碰撞体。
+
 回放最近一次粗糙地形训练：
 
 ```bash
