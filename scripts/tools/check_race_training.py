@@ -1,4 +1,4 @@
-"""检查 Race 的训练结构、原始碰撞体及短时零动作 PD 支撑。"""
+"""检查历史 Race 固定 PD 接口；原版训练对照请用 check_race_original.py。"""
 
 from __future__ import annotations
 
@@ -22,7 +22,7 @@ ROOT = Path(__file__).resolve().parents[2]
 
 def parse_args():
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument("--task", default="RobotLab-Race-Flat-v0")
+    parser.add_argument("--task", default="RobotLab-Race-Legacy-Flat-v0")
     parser.add_argument("--num_envs", type=int, default=4)
     parser.add_argument("--steps", type=int, default=250)
     parser.add_argument(

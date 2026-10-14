@@ -113,6 +113,66 @@ class RaceArticulationCfg(ArticulationCfg):
     joint_sdk_names: list[str] | None = None
 
 
+class RaceModelUrdfConverter(UrdfConverter):
+    """保留 Race 惯量，按配置排除机身与髋壳的四对接触。"""
+
+    def _get_urdf_import_config(self):
+        config = super()._get_urdf_import_config()
+        config.set_import_inertia_tensor(self.cfg.import_inertia_tensor)
+        return config
+
+    def _convert_asset(self, cfg):
+        super()._convert_asset(cfg)
+        if not cfg.filter_base_hip_housings:
+            return
+        from pxr import Usd, UsdPhysics
+
+        stage = Usd.Stage.Open(self.usd_path)
+        robot = stage.GetDefaultPrim()
+        base = stage.GetPrimAtPath(robot.GetPath().AppendChild("base_link"))
+        if not base or not base.HasAPI(UsdPhysics.RigidBodyAPI):
+            raise RuntimeError("Race 碰撞过滤缺少机身刚体")
+        targets = []
+        for leg, prefix in zip(("f_l", "f_r", "b_l", "b_r"),
+                               ("fl", "fr", "rl", "rr"), strict=True):
+            body_name = f"pitch01_leg_{leg}_link"
+            body = stage.GetPrimAtPath(robot.GetPath().AppendChild(body_name))
+            # 旧圆柱与候选 JSON 盒体名称不同；每腿仅选择髋壳形状。
+            names = {f"{body_name}_hip_housing", f"{prefix}_mjx_hip"}
+            matches = [prim for prim in
+                       Usd.PrimRange(body, Usd.TraverseInstanceProxies())
+                       if prim.HasAPI(UsdPhysics.CollisionAPI)
+                       and names.intersection(str(prim.GetPath()).split("/"))]
+            if len(matches) != 1:
+                raise RuntimeError(f"{body_name} 的髋壳碰撞体不唯一：{matches}")
+            targets.append(matches[0].GetPath())
+        # 指向四个具体形状，不排除整条大腿；不修改实例代理或几何。
+        api = UsdPhysics.FilteredPairsAPI.Apply(base)
+        relationship = api.CreateFilteredPairsRel()
+        for path in targets:
+            relationship.AddTarget(path)
+        stage.GetRootLayer().Save()
+
+
+@clone
+def spawn_race_model(prim_path, cfg, translation=None, orientation=None,
+                     **kwargs):
+    """为原版训练导入 Race 模型，不附加历史 PD 任务的接触修改。"""
+    converter = RaceModelUrdfConverter(cfg)
+    return _spawn_from_usd_file(
+        prim_path, converter.usd_path, cfg, translation, orientation,
+    )
+
+
+@configclass
+class RaceModelUrdfFileCfg(sim_utils.UrdfFileCfg):
+    """Race 惯量与精确髋壳过滤；开关参与 USD 缓存哈希。"""
+
+    func: Callable = spawn_race_model
+    import_inertia_tensor: bool = True
+    filter_base_hip_housings: bool = False
+
+
 RACE_CFG = RaceArticulationCfg(
     spawn=RaceUrdfFileCfg(
         asset_path=str(_RESOURCE_DIR / "urdf/race.urdf"),

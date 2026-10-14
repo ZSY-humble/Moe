@@ -48,8 +48,6 @@ cli_args.add_rsl_rl_args(parser)
 AppLauncher.add_app_launcher_args(parser)
 args_cli, hydra_args = parser.parse_known_args()
 
-if args_cli.task.startswith("RobotLab-Race") and args_cli.robogauge:
-    parser.error("当前 RoboGauge 服务使用 Go2 专用模型，Race 请使用本地回放验证。")
 
 # always enable cameras to record video
 if args_cli.video:
@@ -118,15 +116,22 @@ def main(env_cfg: ManagerBasedRLEnvCfg | DirectRLEnvCfg | DirectMARLEnvCfg, agen
     """Train with RSL-RL agent."""
     # override configurations with non-hydra CLI arguments
     agent_cfg = cli_args.update_rsl_rl_cfg(agent_cfg, args_cli)
-    agent_cfg_dict = agent_cfg.to_dict()
-    agent_cfg_dict["robogauge"] = {
-        "enabled": args_cli.robogauge,
-        "port": args_cli.robogauge_port,
-    }
     env_cfg.scene.num_envs = args_cli.num_envs if args_cli.num_envs is not None else env_cfg.scene.num_envs
     agent_cfg.max_iterations = (
         args_cli.max_iterations if args_cli.max_iterations is not None else agent_cfg.max_iterations
     )
+    # 先完成命令行覆盖，再构造训练器实际收到的配置。
+    agent_cfg_dict = agent_cfg.to_dict()
+    race = args_cli.task.startswith("RobotLab-Race")
+    if race and args_cli.robogauge:
+        raise ValueError(
+            "作者原版训练器的 RoboGauge 使用 Go2 评估模型；"
+            "Race 请先用 IsaacLab 回放验证。"
+        )
+    agent_cfg_dict["robogauge"] = {
+        "enabled": args_cli.robogauge,
+        "port": args_cli.robogauge_port,
+    }
 
     # set the environment seed
     # note: certain randomizations occur in the environment initialization so we set the seed here

@@ -1,0 +1,70 @@
+# 试站配置：将前一次纯 PD 承重后的实测角作为新的 PD 目标。
+# 来源：logs/race_pd/current_stance_10s.json，10 秒末态。
+# 单位 rad；四腿顺序为左前、右前、左后、右后。
+# 每腿关节顺序为外展、髋俯仰、膝。
+# 新目标重新承重后仍会下沉；10 秒测试末两秒平均高度约 0.294 m。
+# 该实验不修改训练默认配置及历史模型的控制接口。
+model_path: '{ROOT_DIR}/resources/race/mjcf/race_pd.xml'
+urdf_path: '{ROOT_DIR}/resources/race/urdf/race.urdf'
+base_name: base_link
+base_init_pos: [0.0, 0.0, 0.340134115]
+base_init_quat: [1.0, 0.0, 0.0, 0.0]
+gravity: [0.0, 0.0, -9.81]
+physics_dt: 0.001
+pd_dt: 0.005
+simulation_duration: 0.0
+joint_names:
+- roll_leg_f_l_joint
+- pitch01_leg_f_l_joint
+- pitch02_leg_f_l_joint
+- roll_leg_f_r_joint
+- pitch01_leg_f_r_joint
+- pitch02_leg_f_r_joint
+- roll_leg_b_l_joint
+- pitch01_leg_b_l_joint
+- pitch02_leg_b_l_joint
+- roll_leg_b_r_joint
+- pitch01_leg_b_r_joint
+- pitch02_leg_b_r_joint
+default_angles: [
+  0.078081, -0.138346, 0.203725,  # 左前
+  -0.076228, -0.13846, 0.207122,  # 右前
+  0.07924, -0.135595, 0.205409,  # 左后
+  -0.077022, -0.135978, 0.208566  # 右后
+]
+kps: [
+  30.0, 48.0, 51.0,  # 左前
+  30.0, 48.0, 51.0,  # 右前
+  30.0, 48.0, 51.0,  # 左后
+  30.0, 48.0, 51.0  # 右后
+]
+kds: [
+  1.15, 1.2, 1.0,  # 左前
+  1.15, 1.2, 1.0,  # 右前
+  1.15, 1.2, 1.0,  # 左后
+  1.15, 1.2, 1.0  # 右后
+]
+torque_limits: [
+  22.0, 22.0, 33.0,  # 左前
+  22.0, 22.0, 33.0,  # 右前
+  22.0, 22.0, 33.0,  # 左后
+  22.0, 22.0, 33.0  # 右后
+]
+passive_damping: [
+  0.1, 0.2, 0.15,  # 左前
+  0.1, 0.2, 0.15,  # 右前
+  0.1, 0.2, 0.15,  # 左后
+  0.1, 0.2, 0.15  # 右后
+]
+passive_friction: [
+  0.05, 0.1, 0.08,  # 左前
+  0.05, 0.1, 0.08,  # 右前
+  0.05, 0.1, 0.08,  # 左后
+  0.05, 0.1, 0.08  # 右后
+]
+armature: [
+  0.01, 0.015, 0.012,  # 左前
+  0.01, 0.015, 0.012,  # 右前
+  0.01, 0.015, 0.012,  # 左后
+  0.01, 0.015, 0.012  # 右后
+]

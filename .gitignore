@@ -87,3 +87,9 @@ outputs/
 
 # Race 的 USD 由原 URDF 自动转换，保留源模型并忽略生成缓存。
 resources/race/usd/
+resources/race/usd_go2_training/
+resources/race/usd_*/
+
+# 本地导出物及凭据目录不随训练代码上传。
+/exported/
+/.aws

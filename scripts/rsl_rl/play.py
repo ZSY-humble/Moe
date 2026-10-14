@@ -13,6 +13,7 @@
 import argparse
 import json
 import os
+from pathlib import Path
 import sys
 
 # Preload native extensions before isaacsim/Kit modules are imported to avoid
@@ -55,6 +56,10 @@ parser.add_argument(
 )
 parser.add_argument("--real-time", action="store_true", default=False, help="Run in real-time, if possible.")
 parser.add_argument("--keyboard", action="store_true", default=False, help="Whether to use keyboard.")
+parser.add_argument(
+    "--allow_missing_checkpoint_config", action="store_true",
+    help="仅本地回放：缺少来源 env.yaml 时，明确按当前 Race 配置加载。",
+)
 parser.add_argument("--fix_commands", action="store_true", default=False, help="Fix the velocity commands.")
 # append RSL-RL cli arguments
 cli_args.add_rsl_rl_args(parser)
@@ -66,6 +71,8 @@ if args_cli.keyboard and args_cli.headless:
     parser.error("键盘回放需要本地窗口，请去掉 --headless。")
 if args_cli.keyboard and args_cli.fix_commands:
     parser.error("--keyboard 与 --fix_commands 不能同时使用。")
+from local_viewer import configure_local_viewer
+configure_local_viewer(args_cli)
 # always enable cameras to record video
 if args_cli.video:
     args_cli.enable_cameras = True
@@ -163,7 +170,11 @@ def main(env_cfg: ManagerBasedRLEnvCfg | DirectRLEnvCfg | DirectMARLEnvCfg, agen
         for name in vars(env_cfg.events):
             if not name.startswith("_") and name.startswith("randomize_"):
                 setattr(env_cfg.events, name, None)
-        env_cfg.events.reset_robot_joints.params["position_range"] = (0.0, 0.0)
+        # 原版按默认角乘系数复位；历史 Race 则按关节角偏移复位。
+        legacy = "legs" in env_cfg.scene.robot.actuators
+        env_cfg.events.reset_robot_joints.params["position_range"] = (
+            (0.0, 0.0) if legacy else (1.0, 1.0)
+        )
         env_cfg.events.reset_robot_joints.params["velocity_range"] = (0.0, 0.0)
         env_cfg.events.reset_base.params["pose_range"] = {}
         env_cfg.events.reset_base.params["velocity_range"] = {}
@@ -187,7 +198,19 @@ def main(env_cfg: ManagerBasedRLEnvCfg | DirectRLEnvCfg | DirectMARLEnvCfg, agen
 
     if args_cli.task.startswith("RobotLab-Race"):
         from race_checkpoint import verify_race_checkpoint
-        verify_race_checkpoint(resume_path, env_cfg)
+        config_path = Path(resume_path).resolve().parent / "params/env.yaml"
+        if (not config_path.is_file()
+                and "legs" not in env_cfg.scene.robot.actuators):
+            raise FileNotFoundError(
+                "原版训练接口需要检查点旁的 params/env.yaml；"
+                "3400/9400 历史权重请使用 RobotLab-Race-Legacy-v0 "
+                "或现有 MuJoCo 键盘入口。"
+            )
+        if config_path.is_file() or not args_cli.allow_missing_checkpoint_config:
+            verify_race_checkpoint(resume_path, env_cfg)
+        else:
+            print("[WARN] 权重没有附带训练 env.yaml；按用户指定的当前 Race "
+                  "配置回放，网络形状仍由权重加载严格核对。")
 
     log_dir = os.path.dirname(resume_path)
 
@@ -202,7 +225,29 @@ def main(env_cfg: ManagerBasedRLEnvCfg | DirectRLEnvCfg | DirectMARLEnvCfg, agen
     if args_cli.keyboard:
         import copy
 
-        keyboard_ranges = copy.deepcopy(env_cfg.commands.base_velocity.ranges)
+        command_cfg = env_cfg.commands.base_velocity
+        if hasattr(command_cfg.ranges, "ang_vel_yaw"):
+            from types import SimpleNamespace
+            keyboard_ranges = SimpleNamespace(
+                lin_vel_x=command_cfg.ranges.lin_vel_x,
+                lin_vel_y=command_cfg.ranges.lin_vel_y,
+                ang_vel_z=command_cfg.ranges.ang_vel_yaw,
+            )
+        else:
+            keyboard_ranges = copy.deepcopy(command_cfg.ranges)
+        env_cfg.viewer.resolution = (960, 540)
+        env_cfg.viewer.origin_type = "asset_root"
+        env_cfg.viewer.asset_name = "robot"
+        env_cfg.viewer.eye = (1.8, 1.8, 1.0)
+        env_cfg.viewer.lookat = (0.0, 0.0, 0.0)
+        if env_cfg.scene.num_envs <= 4:
+            # 单狗回放不用预留数千台机器人训练的接触缓冲区。
+            physx = env_cfg.sim.physx
+            physx.gpu_max_rigid_contact_count = 2**16
+            physx.gpu_max_rigid_patch_count = 2**15
+            physx.gpu_found_lost_pairs_capacity = 2**16
+            physx.gpu_found_lost_aggregate_pairs_capacity = 2**16
+            physx.gpu_total_aggregate_pairs_capacity = 2**16
         # 启动和复位均从零命令开始，随后由键盘接管。
         env_cfg.commands.base_velocity = UniformVelocityCommandCfg(
             asset_name="robot", heading_command=False,
@@ -243,15 +288,15 @@ def main(env_cfg: ManagerBasedRLEnvCfg | DirectRLEnvCfg | DirectMARLEnvCfg, agen
 
     keyboard = None
     if args_cli.keyboard:
-        from keyboard_control import attach_keyboard
+        from keyboard_control import attach_keyboard, create_game_keyboard
 
-        keyboard = Se2Keyboard(Se2KeyboardCfg(
+        keyboard = create_game_keyboard(Se2KeyboardCfg(
             v_x_sensitivity=0.5, v_y_sensitivity=0.25,
             omega_z_sensitivity=0.5, sim_device=env.unwrapped.device,
         ))
         attach_keyboard(env.unwrapped, keyboard, keyboard_ranges)
-        print("[INFO] 点击仿真窗口后按住方向键移动，Z/X 转向；"
-              "松键停止，L 清零。速度限制沿用训练配置。")
+        print("[INFO] 点击画面空白处，WASD/方向键移动，Q/E 或 Z/X 转向；"
+              "松键停止，空格/L 清零。速度限制沿用训练配置。")
 
     print(f"[INFO]: Loading model checkpoint from: {resume_path}")
     # load previously trained model
@@ -260,7 +305,8 @@ def main(env_cfg: ManagerBasedRLEnvCfg | DirectRLEnvCfg | DirectMARLEnvCfg, agen
     elif agent_cfg.class_name == "DistillationRunner":
         runner = DistillationRunner(env, agent_cfg.to_dict(), log_dir=None, device=agent_cfg.device)
     elif agent_cfg.class_name == "OnPolicyRunnerCTS":
-        runner = OnPolicyRunnerCTS(env, agent_cfg.to_dict(), log_dir=None, device=agent_cfg.device)
+        from cts_playback import CTSPlayback
+        runner = CTSPlayback(env, agent_cfg.to_dict(), device=agent_cfg.device)
     else:
         raise ValueError(f"Unsupported runner class: {agent_cfg.class_name}")
     runner.load(resume_path)
@@ -290,12 +336,16 @@ def main(env_cfg: ManagerBasedRLEnvCfg | DirectRLEnvCfg | DirectMARLEnvCfg, agen
     if agent_cfg.class_name == "OnPolicyRunnerCTS":
         export_cts_policy_as_jit(policy_nn, actor_obs_normalizer=policy_nn.actor_obs_normalizer, single_obs_normalizer=policy_nn.single_obs_normalizer, path=export_model_dir, filename="policy.pt")
         export_cts_policy_as_onnx(policy_nn, actor_obs_normalizer=policy_nn.actor_obs_normalizer, single_obs_normalizer=policy_nn.single_obs_normalizer, path=export_model_dir, filename="policy.onnx")
-        if args_cli.task.startswith("RobotLab-Race"):
+        if (args_cli.task.startswith("RobotLab-Race")
+                and "legs" in env.unwrapped.cfg.scene.robot.actuators):
             from race_export import write_deployment_manifest
             write_deployment_manifest(
                 env.unwrapped, policy_nn, export_model_dir,
                 task=args_cli.task, checkpoint=resume_path,
             )
+        elif args_cli.task.startswith("RobotLab-Race"):
+            print("[INFO] 原版 GO2HV 执行器策略已导出；"
+                  "IsaacLab 可直接回放，旧 Race 固定 PD 部署入口不适用。")
     else:
         export_policy_as_jit(policy_nn, normalizer=normalizer, path=export_model_dir, filename="policy.pt")
         export_policy_as_onnx(policy_nn, normalizer=normalizer, path=export_model_dir, filename="policy.onnx")
@@ -344,6 +394,28 @@ def main(env_cfg: ManagerBasedRLEnvCfg | DirectRLEnvCfg | DirectMARLEnvCfg, agen
         if args_cli.video:
             writer.append_data(env.env.render())
         timestep += 1
+        if keyboard is not None and timestep % 50 == 0:
+            robot = env.unwrapped.scene["robot"]
+            command = env.unwrapped.command_manager.get_command("base_velocity")[0]
+            position = robot.data.root_pos_w[0].detach().cpu().tolist()
+            velocity = robot.data.root_lin_vel_b[0].detach().cpu().tolist()
+            yaw_rate = float(robot.data.root_ang_vel_b[0, 2].item())
+            state = {
+                "step": timestep, "checkpoint": resume_path,
+                "command": command.detach().cpu().tolist(),
+                "position_m": position, "body_velocity_m_s": velocity,
+                "yaw_rate_rad_s": yaw_rate,
+            }
+            status_dir = Path("logs/keyboard")
+            status_dir.mkdir(parents=True, exist_ok=True)
+            (status_dir / "state.json").write_text(
+                json.dumps(state, ensure_ascii=False, indent=2),
+                encoding="utf-8",
+            )
+            print(f"[回放] 实际速度 vx={velocity[0]:+.2f}，"
+                  f"vy={velocity[1]:+.2f} m/s，"
+                  f"转向={yaw_rate:+.2f} rad/s，"
+                  f"高度={position[2]:.3f} m", flush=True)
         if args_cli.video and timestep >= args_cli.video_length:
             break
         # camera_follow(env)

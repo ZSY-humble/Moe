@@ -115,6 +115,26 @@ def _function_name(value):
     return value
 
 
+def _plain_config_equal(saved, current, location):
+    """比较完整执行器字段，兼容标量参数及逐关节参数两种接口。"""
+    if isinstance(saved, Mapping) and isinstance(current, Mapping):
+        if set(saved) != set(current):
+            raise ValueError(f"Race 检查点与当前 {location} 的字段不一致")
+        for name in saved:
+            _plain_config_equal(saved[name], current[name], f"{location}.{name}")
+    elif isinstance(saved, (tuple, list)) and isinstance(current, (tuple, list)):
+        if len(saved) != len(current):
+            raise ValueError(f"Race 检查点与当前 {location} 的长度不一致")
+        for index, (left, right) in enumerate(zip(saved, current)):
+            _plain_config_equal(left, right, f"{location}.{index}")
+    elif (isinstance(saved, (int, float)) and not isinstance(saved, bool)
+          and isinstance(current, (int, float))
+          and not isinstance(current, bool)):
+        _numbers_equal(saved, current, location)
+    elif _function_name(saved) != _function_name(current):
+        raise ValueError(f"Race 检查点与当前 {location} 不一致")
+
+
 def verify_race_checkpoint(checkpoint_path, env_cfg):
     """核对检查点和当前 Race 接口，允许平地与粗糙地形之间续训。
 
@@ -157,7 +177,7 @@ def verify_race_checkpoint(checkpoint_path, env_cfg):
                 current(*action_path, name) is not True
             ):
                 raise ValueError(f"Race 动作配置 {name} 必须为 true")
-        _numbers_equal(
+        _plain_config_equal(
             saved(*action_path, "scale"), current(*action_path, "scale"),
             "actions.joint_pos.scale",
         )
@@ -172,15 +192,13 @@ def verify_race_checkpoint(checkpoint_path, env_cfg):
 
         pose_path = ("scene", "robot", "init_state", "joint_pos")
         _joint_mapping_equal(saved(*pose_path), current(*pose_path), "默认关节角")
-        actuator_path = ("scene", "robot", "actuators", "legs")
-        for name in (
-            "stiffness", "damping", "effort_limit", "armature",
-            "passive_damping", "passive_friction",
-        ):
-            _joint_mapping_equal(
-                saved(*actuator_path, name), current(*actuator_path, name),
-                f"执行器.{name}",
-            )
+        actuator_path = ("scene", "robot", "actuators")
+        _plain_config_equal(
+            saved(*actuator_path), current(*actuator_path), "执行器",
+        )
+        for name in ("pos", "rot"):
+            path = ("scene", "robot", "init_state", name)
+            _numbers_equal(saved(*path), current(*path), f"初始姿态.{name}")
 
         for group, expected_history in (("policy", 10), ("single_obs", 1)):
             group_path = ("observations", group)

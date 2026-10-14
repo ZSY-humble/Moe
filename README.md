@@ -17,8 +17,9 @@
 ## Overview
 
 本地版本已接入 **Race 0710**，默认训练和回放任务为
-`RobotLab-Race-v0`，使用现有 MoE CTS 框架。模型、优化初始姿态、
-原 PD 参数、奖励、接触传感器、策略导出和 MuJoCo 部署均已适配。
+`RobotLab-Race-v0`。默认任务直接继承作者 Go2 的环境、奖励、地形、
+课程、随机化、GO2HV 执行器算法和 MoE CTS 参数，适配 Race 模型、
+实体名映射，以及用户指定的身高、站姿和电机参数；每 1000 轮保存。
 原 Go2 任务仍可显式选择 `RobotLab-Go2-v0`；下方论文、演示和基准
 结果来自原 Go2 项目，不代表 Race 训练结果。
 
@@ -201,7 +202,7 @@ python scripts/rsl_rl/train.py \
 
 ## Training and Evaluation
 
-先激活已安装的 Conda 环境。以下命令针对 RTX 4060 8 GB：
+先激活已安装的 Conda 环境。以下训练命令使用默认 16384 个并行环境：
 
 ```bash
 conda activate go2_rl_robotlab
@@ -209,20 +210,21 @@ export OMNI_KIT_ACCEPT_EULA=YES
 
 # Race 粗糙地形训练；省略 --task 时同样默认训练 Race。
 python scripts/rsl_rl/train.py --task RobotLab-Race-v0 \
-    --headless --device cuda:0 --num_envs 256 --logger tensorboard
+    --headless --device cuda:0 --logger tensorboard
 
 # 可先训练平地，两个任务的观测和网络维度相同。
 python scripts/rsl_rl/train.py --task RobotLab-Race-Flat-v0 \
-    --headless --device cuda:0 --num_envs 256 --logger tensorboard
+    --headless --device cuda:0 --logger tensorboard
 
 # 回放最近一次 Race 粗糙地形训练，并导出策略。
 python scripts/rsl_rl/play.py --task RobotLab-Race-v0 --num_envs 4
 ```
 
-检查点分别位于 `logs/rsl_rl/race_moe_cts/` 和
-`logs/rsl_rl/race_flat_moe_cts/`。回放会导出
-`exported/policy.pt`、`policy.onnx` 和 `deployment.json`。
-短时流程验证不代表策略已学会稳定步行；正式训练默认 10,000 轮。
+新检查点分别位于 `logs/rsl_rl/race_go2_moe_cts/` 和
+`logs/rsl_rl/race_go2_flat_moe_cts/`。默认 16384 环境、300000 轮，
+按用户指定每 1000 轮保存。
+回放导出 `exported/policy.pt` 和 `policy.onnx`；新 GO2HV 策略使用
+IsaacLab 回放，旧固定 PD 的 MuJoCo 入口只用于历史模型。
 
 ---
 
@@ -294,7 +296,8 @@ For more details, refer to the [robot_lab repo](https://github.com/fan-ziqi/robo
 
 ## MuJoCo Sim2Sim
 
-Race 使用回放导出的 TorchScript 策略与同目录部署合同：
+以下 Race 固定 PD 部署命令只适用于历史定制训练模型（含 3400/9400），
+默认新任务采用原 GO2HV 执行器，当前通过 IsaacLab 回放验证：
 
 ```bash
 python deploy/deploy_mujoco/deploy_race.py \

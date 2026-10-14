@@ -1,0 +1,249 @@
+{
+  "verified_at_utc": "2026-10-14T09:00:37.519775+00:00",
+  "local_single_box_checks_passed": true,
+  "only_base_box_dimensions_changed": true,
+  "mechanical_checks": {
+    "全部通过": true,
+    "各数组最大绝对误差": {
+      "body_parentid": 0.0,
+      "body_pos": 0.0,
+      "body_quat": 0.0,
+      "body_mass": 0.0,
+      "body_inertia": 0.0,
+      "body_ipos": 0.0,
+      "body_iquat": 0.0,
+      "body_gravcomp": 0.0,
+      "jnt_type": 0.0,
+      "jnt_bodyid": 0.0,
+      "jnt_pos": 0.0,
+      "jnt_axis": 0.0,
+      "jnt_limited": 0.0,
+      "jnt_range": 0.0,
+      "qpos0": 0.0,
+      "dof_damping": 0.0,
+      "dof_frictionloss": 0.0,
+      "dof_armature": 0.0,
+      "actuator_trntype": 0.0,
+      "actuator_trnid": 0.0,
+      "actuator_gear": 0.0,
+      "actuator_ctrlrange": 0.0,
+      "actuator_forcerange": 0.0,
+      "actuator_gainprm": 0.0,
+      "actuator_biasprm": 0.0
+    }
+  },
+  "geometry": {
+    "source_urdf": "resources/race/urdf/race.urdf",
+    "training_urdf": "resources/race/urdf/race_go2_single_box.urdf",
+    "json_path": "resources/race/collision_candidates/go2_single_box.json",
+    "json_sha256": "2e52a4a695edcfb94d6b15d60e595cb554f3c8a30504a5ba79a6146fd181cc30",
+    "training_urdf_sha256": "a397a93f10d33a552be4000bf952c8a237401b1e56412da3a1bb53a48fc4a32e",
+    "only_base_box_size_changed": true,
+    "base_box_count": 1,
+    "total_collider_count": 26,
+    "new_box_dimensions_m": [
+      0.42,
+      0.1,
+      0.1
+    ],
+    "box_center_m": [
+      0.01,
+      0.0,
+      -0.0185
+    ],
+    "box_bounds_m": [
+      [
+        -0.19999999999999998,
+        -0.05,
+        -0.0685
+      ],
+      [
+        0.22,
+        0.05,
+        0.0315
+      ]
+    ],
+    "race_core_visual_dimensions_m": [
+      0.5109698623418808,
+      0.2041674703359604,
+      0.15689875692129135
+    ],
+    "race_box_to_core_dimension_ratios": [
+      0.8219662859861302,
+      0.48979399037196586,
+      0.6373536792911958
+    ],
+    "go2_box_to_full_visual_dimension_ratios": [
+      0.8179044991052403,
+      0.48195889737594233,
+      0.6139826595739336
+    ],
+    "proportion_assumption": "Race仅取Z≤60mm机身主体，排除顶部附件；Go2视觉含头部，因此只按大致比例设计，不宣称各功能部位严格相似。",
+    "mechanical_checks": {
+      "全部通过": true,
+      "各数组最大绝对误差": {
+        "body_parentid": 0.0,
+        "body_pos": 0.0,
+        "body_quat": 0.0,
+        "body_mass": 0.0,
+        "body_inertia": 0.0,
+        "body_ipos": 0.0,
+        "body_iquat": 0.0,
+        "body_gravcomp": 0.0,
+        "jnt_type": 0.0,
+        "jnt_bodyid": 0.0,
+        "jnt_pos": 0.0,
+        "jnt_axis": 0.0,
+        "jnt_limited": 0.0,
+        "jnt_range": 0.0,
+        "qpos0": 0.0,
+        "dof_damping": 0.0,
+        "dof_frictionloss": 0.0,
+        "dof_armature": 0.0,
+        "actuator_trntype": 0.0,
+        "actuator_trnid": 0.0,
+        "actuator_gear": 0.0,
+        "actuator_ctrlrange": 0.0,
+        "actuator_forcerange": 0.0,
+        "actuator_gainprm": 0.0,
+        "actuator_biasprm": 0.0
+      }
+    },
+    "default_base_to_leg_gap_m": 0.0697688488912127,
+    "full_cad_coverage_required": false
+  },
+  "stress_test": {
+    "rows": [
+      {
+        "seed": 42,
+        "original_large_box": 470,
+        "new_single_box": 7
+      },
+      {
+        "seed": 43,
+        "original_large_box": 489,
+        "new_single_box": 7
+      },
+      {
+        "seed": 44,
+        "original_large_box": 476,
+        "new_single_box": 7
+      }
+    ],
+    "original_total": 1435,
+    "new_total": 21,
+    "reduction_fraction": 0.9853658536585366,
+    "scope": "32环境×200步，每20ms独立高斯动作N(0,1)，缩放0.25rad；没有策略学习。"
+  },
+  "zero_action_10s": {
+    "step": 500,
+    "time_s": 10.0,
+    "base_height_m": [
+      0.34063059091567993,
+      0.34034690260887146,
+      0.34098199009895325,
+      0.34034690260887146
+    ],
+    "base_contact_n": [
+      0.0,
+      0.0,
+      0.0,
+      0.0
+    ],
+    "illegal_contact_fraction": 0.0,
+    "max_abs_joint_vel_rad_s": 0.05420652776956558,
+    "max_abs_torque_nm": 5.199429035186768,
+    "min_upright": 0.9999489188194275
+  },
+  "small_action_termination_count": 0,
+  "ground_contact_probes": {
+    "labels": [
+      "previous_227n_pose",
+      "base_side_ground",
+      "base_ground",
+      "normal_stand",
+      "base_upright_ground",
+      "base_roll30_ground",
+      "base_inverted_low",
+      "base_pitch90_ground",
+      "previous_227n_pose",
+      "base_side_ground",
+      "base_ground",
+      "normal_stand",
+      "base_upright_ground",
+      "base_roll30_ground",
+      "base_inverted_low",
+      "base_pitch90_ground"
+    ],
+    "max_base_contact_n": [
+      0.0,
+      212.16270446777344,
+      0.0,
+      0.0,
+      401.9883117675781,
+      297.7248229980469,
+      424.16143798828125,
+      264.3406982421875,
+      0.0,
+      212.16270446777344,
+      0.0,
+      0.0,
+      401.9883117675781,
+      297.7248229980469,
+      424.16143798828125,
+      264.3406982421875
+    ],
+    "terminated": [
+      false,
+      true,
+      false,
+      false,
+      true,
+      true,
+      true,
+      true,
+      false,
+      true,
+      false,
+      false,
+      true,
+      true,
+      true,
+      true
+    ],
+    "inverted_case_without_base_force": "base_ground根高度10mm倒置时，腿部先承受约4893N探针载荷并撑起，机身净接触力为零，不会触发原机身接触终止；更低根高度−15mm倒置时机身接触424N并终止。探针是故意重叠测试，力不是正常载荷。"
+  },
+  "default_training_asset_verified": true,
+  "original_training_rules_audit_passed": true,
+  "legacy_urdf_preserved": true,
+  "ppo_or_stair_success_tested": false,
+  "limitations": [
+    "比例参考的是视觉范围，Go2视觉含头部而Race主体排除顶部附件，不是严格结构相似缩放。",
+    "主动欠包络可能使视觉外壳先于碰撞盒接触障碍；此处仅验证简化模型行为。",
+    "原终止规则只检查机身净接触力，倒置而由腿部支撑的姿态可能不立即终止，未新增姿态终止。",
+    "压力测试的终止次数不代表训练成功率。"
+  ],
+  "remaining_contacts_verified": {
+    "report": "logs/race_single_box/remaining_contact_attribution.json",
+    "matched_episodes": 21,
+    "all_base_to_ground": true,
+    "self_collision_in_termination_windows": false
+  },
+  "remaining_contact_summary": {
+    "matched_episodes": 21,
+    "dominant_pair_counts": {
+      "base_link_contact_0 <-> /World/ground/terrain/mesh": 21
+    },
+    "inverted_at_termination_count": 18,
+    "base_height_range_m": [
+      0.1384303867816925,
+      0.23038946092128754
+    ],
+    "episode_duration_range_s": [
+      1.58,
+      3.9
+    ],
+    "conclusion": "本次三组压力测试剩余21次均为机身盒与地面接触；不是机身与腿的自碰撞。",
+    "scope": "只针对这三组固定种子、32环境×200步、每20ms独立高斯动作的测试；不证明任何姿态永不自碰撞，也不是PPO训练成绩。"
+  }
+}
