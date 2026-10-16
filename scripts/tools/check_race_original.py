@@ -1,4 +1,4 @@
-"""核对原 Go2 训练规则及用户指定的 Race 模型、电机和保存间隔适配。"""
+"""核对原 Go2 适配，以及用户指定的平地 SLR 姿态奖励实验。"""
 
 import argparse
 from copy import deepcopy
@@ -110,7 +110,13 @@ def main():
     import robot_lab.tasks  # noqa: F401
     from robot_lab.tasks.go2.env_cfg import Go2EnvCfg
     from robot_lab.tasks.go2.rsl_rl_cfg import MoECTSRunnerCfg
-    from robot_lab.tasks.race.env_cfg import NAME_MAP, MODEL_SPAWN_FIELDS
+    from robot_lab.tasks.race.env_cfg import (
+        NAME_MAP, MODEL_SPAWN_FIELDS, SLR_STAND_ANGLES,
+    )
+    from robot_lab.tasks.race.mdp import SLRPoseReward
+    from robot_lab.tasks.race.commands import (
+        RaceFlatOmniCommand, RaceFlatOmniCommandCfg,
+    )
 
     original = Go2EnvCfg()
     before = deepcopy(original.to_dict())
@@ -145,11 +151,11 @@ def main():
     for scanner in (expected.scene.height_scanner,
                     expected.scene.height_scanner_small):
         scanner.prim_path = scanner.prim_path.replace("/base", "/base_link")
-    # 用户指定的机器人高度适配：释放 0.35～0.37 m，奖励目标 0.335 m。
+    # 用户指定：释放 0.35～0.37 m，奖励目标恢复为原版 0.38 m。
     expected.scene.robot.init_state.pos = (0.0, 0.0, 0.36)
     expected.events.reset_base.params["pose_range"]["z"] = (-0.01, 0.01)
-    expected.rewards.base_height_l2.params["target_height"] = 0.335
-    expected.rewards.feet_regulation.params["base_height_target"] = 0.335
+    expected.rewards.base_height_l2.params["target_height"] = 0.38
+    expected.rewards.feet_regulation.params["base_height_target"] = 0.38
     expected_actuator = expected.scene.robot.actuators["GO2HV"]
     settings = {
         "stiffness": (30.0, 48.0, 51.0),
@@ -199,7 +205,10 @@ def main():
         "RobotLab-Race-Flat-v0", "rsl_rl_cfg_entry_point",
     ).to_dict()
     flat_runner["experiment_name"] = race_runner["experiment_name"]
-    assert not differences(race_runner, flat_runner)
+    expected_flat_runner = deepcopy(race_runner)
+    expected_flat_runner["max_iterations"] = 10000
+    expected_flat_runner["save_interval"] = 250
+    assert not differences(expected_flat_runner, flat_runner)
     for task in ("RobotLab-Race-v0", "RobotLab-Race-Flat-v0",
                  "RobotLab-Race-Go2Reference-v0"):
         assert gym.spec(task).entry_point == gym.spec("RobotLab-Go2-v0").entry_point
@@ -207,7 +216,52 @@ def main():
     flat_expected["scene"]["terrain"]["terrain_generator"]["sub_terrains"] = (
         flat.to_dict()["scene"]["terrain"]["terrain_generator"]["sub_terrains"]
     )
+    flat_expected["scene"]["robot"]["init_state"]["joint_pos"] = (
+        deepcopy(SLR_STAND_ANGLES)
+    )
+    flat_expected["rewards"]["base_height_l2"]["params"]["target_height"] = .36
+    flat_expected["rewards"]["feet_regulation"]["params"]["base_height_target"] = .36
+    flat_expected["rewards"]["feet_regulation"]["weight"] = -.2
+    assert flat.rewards.base_height_l2.params["target_height"] == .36
+    assert flat.rewards.feet_regulation.params["base_height_target"] == .36
+    assert flat.rewards.feet_regulation.weight == -.2
+    assert race.rewards.feet_regulation.weight == -.05
+    command = flat.commands.base_velocity
+    assert command.class_type is RaceFlatOmniCommand
+    assert not command.command_range_curriculum
+    assert command.curriculum_threshold == .85
+    assert command.curriculum_step == .1
+    assert command.maximum_velocity == 1.5
+    assert command.minimum_segments_per_group == 32
+    assert command.sampling_probabilities == (.1, .2, .2, .2, .3)
+    expected_commands = RaceFlatOmniCommandCfg()
+    for name in ("lin_vel_x", "lin_vel_y", "ang_vel_yaw"):
+        assert getattr(command.ranges, name) == [-.5, .5]
+        setattr(expected_commands.ranges, name, [-.5, .5])
+    expected_commands.terrain_max_command_ranges["flat"] = {
+        name: [-1.5, 1.5] for name in
+        ("lin_vel_x", "lin_vel_y", "ang_vel_yaw")
+    }
+    flat_expected["commands"]["base_velocity"] = expected_commands.to_dict()
+    pose = flat.rewards.pose
+    assert pose.func is SLRPoseReward and pose.weight == 0.5
+    assert pose.params["command_name"] == "base_velocity"
+    assert pose.params["command_threshold"] == 0.05
+    assert pose.params["standing_std"] == {
+        "roll_": 0.12, "pitch01_": 0.12, "pitch02_": 0.25,
+    }
+    assert pose.params["moving_std"] == {
+        "roll_": 0.30, "pitch01_": 0.30, "pitch02_": 0.60,
+    }
+    assert pose.params["asset_cfg"].joint_names == list(JOINT_NAMES)
+    assert pose.params["asset_cfg"].preserve_order
+    flat_expected["rewards"]["pose"] = pose.to_dict()
     assert not differences(flat_expected, flat.to_dict())
+    # 配置创建顺序不能污染粗糙地形或作者的默认值。
+    assert not differences(before, Go2EnvCfg().to_dict())
+    assert not hasattr(race.rewards, "pose")
+    from check_race_flat_curriculum import run_checks
+    flat_command_checks = run_checks(flat)
 
     generator = race.scene.terrain.terrain_generator
     names = list(generator.sub_terrains)
@@ -226,11 +280,14 @@ def main():
     reset_range = race.events.reset_base.params["pose_range"]["z"]
     assert release_height == 0.36
     assert np.allclose(np.array(reset_range) + release_height, [0.35, 0.37])
-    assert race.rewards.base_height_l2.params["target_height"] == 0.335
-    assert race.rewards.feet_regulation.params["base_height_target"] == 0.335
+    assert race.rewards.base_height_l2.params["target_height"] == 0.38
+    assert race.rewards.feet_regulation.params["base_height_target"] == 0.38
     reward_names = {name for name, value in vars(race.rewards).items()
                     if value is not None and not name.startswith("_")}
     assert len(reward_names) == 15
+    flat_reward_names = {name for name, value in vars(flat.rewards).items()
+                         if value is not None and not name.startswith("_")}
+    assert flat_reward_names == reward_names | {"pose"}
     assert not reward_names.intersection({"feet_air_time", "feet_height",
                                           "feet_height_body", "stairs_success"})
     # 核对旧权重来源验证器兼容两种执行器，并拒绝交叉加载。
@@ -243,6 +300,18 @@ def main():
     checkpoint = fixture / "model_0.pt"
     checkpoint.touch()
     verify_race_checkpoint(checkpoint, race)
+    flat_fixture = args.output.parent / "flat_checkpoint_interface"
+    flat_fixture.mkdir(parents=True, exist_ok=True)
+    dump_yaml(str(flat_fixture / "params/env.yaml"), flat)
+    flat_checkpoint = flat_fixture / "model_0.pt"
+    flat_checkpoint.touch()
+    verify_race_checkpoint(flat_checkpoint, flat)
+    try:
+        verify_race_checkpoint(checkpoint, flat)
+    except ValueError:
+        pass
+    else:
+        raise AssertionError("未拒绝旧站姿权重直接加载到 SLR 平地站姿")
     legacy = load_cfg_from_registry(
         "RobotLab-Race-Legacy-v0", "env_cfg_entry_point",
     )
@@ -279,11 +348,29 @@ def main():
             "race_release_height_m": release_height,
             "race_release_height_range_m": [release_height + v
                                              for v in reset_range],
-            "race_reward_target_m": 0.335,
+            "race_reward_target_m": 0.38,
             "reward_form_weights_curriculum_unchanged": True,
         },
         "terrain_columns": counts,
-        "flat_changes_only_sub_terrains": True,
+        "flat_changes_only_sub_terrains": False,
+        "flat_user_requested_overrides_verified": True,
+        "flat_experiment": {
+            "default_joint_pos": flat.scene.robot.init_state.joint_pos,
+            "pose_weight": pose.weight,
+            "pose_parameters": {
+                key: value for key, value in pose.params.items()
+                if key != "asset_cfg"
+            },
+            "command_range_curriculum": (
+                flat.commands.base_velocity.command_range_curriculum
+            ),
+            "performance_command_curriculum": flat_command_checks,
+            "max_iterations": flat_runner["max_iterations"],
+            "save_interval": flat_runner["save_interval"],
+            "active_reward_count": len(flat_reward_names),
+            "height_target_m": flat.rewards.base_height_l2.params["target_height"],
+            "feet_regulation_weight": flat.rewards.feet_regulation.weight,
+        },
         "original_go2_unmodified_by_race": True,
         "default_num_envs": race.scene.num_envs,
         "episode_seconds": race.episode_length_s,
@@ -309,11 +396,16 @@ def main():
     }
     args.output.parent.mkdir(parents=True, exist_ok=True)
     args.output.write_text(json.dumps(report, ensure_ascii=False, indent=2))
-    print("[通过] 原 Go2 规则不变；Race 模型、电机及用户保存间隔核验通过。")
+    print("[通过] 原 Go2 与复杂地形基线保留；平地 SLR pose 实验核验通过。")
     print(json.dumps(report, ensure_ascii=False, indent=2))
 
 
 try:
     main()
+except Exception:
+    # Kit 关闭过程可能直接退出；先打印异常，避免把缺报告的退出当成通过。
+    import traceback
+    traceback.print_exc()
+    raise
 finally:
     launcher.app.close()

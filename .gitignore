@@ -89,6 +89,8 @@ outputs/
 resources/race/usd/
 resources/race/usd_go2_training/
 resources/race/usd_*/
+# 新版策略部署模型由训练配置和 URDF 生成，不覆盖历史固定 PD 模型。
+resources/race/mjcf/race_go2hv_*.xml
 
 # 本地导出物及凭据目录不随训练代码上传。
 /exported/

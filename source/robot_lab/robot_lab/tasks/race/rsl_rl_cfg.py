@@ -1,4 +1,4 @@
-"""继承原版 MoE CTS；用户指定每 1000 轮保存，保留独立日志名称。"""
+"""继承原版 MoE CTS；复杂地形每1000轮、平地每250轮保存。"""
 
 from isaaclab.utils import configclass
 
@@ -14,4 +14,5 @@ class RaceMoECTSRunnerCfg(MoECTSRunnerCfg):
 @configclass
 class RaceFlatMoECTSRunnerCfg(MoECTSRunnerCfg):
     experiment_name = "race_go2_flat_moe_cts"
-    save_interval = 1000
+    save_interval = 250
+    max_iterations = 10000

@@ -91,13 +91,15 @@ def _terrain(world, terrain, floor_visual):
                 terrain_representation="plane", exit_x=4.5)
 
 
-def build_model(terrain="plane", level=0, timestep=0.001, output=None):
+def build_model(terrain="plane", level=0, timestep=0.001, output=None, *,
+                urdf_path=None, control_cfg=None):
     """编译唯一的 26 碰撞体 Race，动力学参数只读本仓库 URDF/配置。"""
     if not (0 < timestep <= 0.005):
         raise ValueError("MuJoCo 内部时间步应在 (0, 0.005] 秒")
     if abs(0.005 / timestep - round(0.005 / timestep)) > 1e-8:
         raise ValueError("内部时间步必须整除 SLR 的 5 ms PD 周期")
-    urdf_path = ROOT / "resources/race/urdf/race.urdf"
+    urdf_path = (Path(urdf_path) if urdf_path is not None else
+                 ROOT / "resources/race/urdf/race.urdf")
     source = ET.parse(urdf_path).getroot()
     links = {link.get("name"): link for link in source.findall("link")}
     joints = source.findall("joint")
@@ -110,7 +112,8 @@ def build_model(terrain="plane", level=0, timestep=0.001, output=None):
     if root_names != {"base_link"}:
         raise ValueError("Race 根连杆不是唯一的 base_link")
     config_path = ROOT / "deploy/deploy_mujoco/configs/race.yaml"
-    cfg = yaml.safe_load(config_path.read_text(encoding="utf-8"))
+    cfg = (deepcopy(control_cfg) if control_cfg is not None else
+           yaml.safe_load(config_path.read_text(encoding="utf-8")))
     mjcf = ET.Element("mujoco", model="simtosim_race")
     ET.SubElement(mjcf, "compiler", angle="radian", autolimits="true",
                   inertiafromgeom="false", fusestatic="false")

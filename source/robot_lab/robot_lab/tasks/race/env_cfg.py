@@ -1,27 +1,44 @@
-"""Race 模型与电机参数按用户指定适配，训练规则继承作者 Go2。"""
+"""Race 继承作者 Go2；平地按用户要求增加 SLR 姿态奖励和速度课程。"""
 
 from copy import deepcopy
+import json
 from math import isfinite
 from pathlib import Path
 import xml.etree.ElementTree as ET
 
-from isaaclab.managers import SceneEntityCfg
+from isaaclab.managers import RewardTermCfg as RewTerm, SceneEntityCfg
 from isaaclab.utils import configclass
 
+from robot_lab.assets import ISAACLAB_ASSETS_DATA_DIR
 from robot_lab.assets.race import (
     RACE_CFG, JOINT_NAMES, RaceModelUrdfFileCfg,
 )
 from robot_lab.assets.unitree import GO2_CFG_UNITREE
-from robot_lab.tasks.go2.env_cfg import Go2EnvCfg, JOINT_NAMES as GO2_JOINT_NAMES
+from robot_lab.tasks.go2.env_cfg import (
+    Go2EnvCfg, JOINT_NAMES as GO2_JOINT_NAMES, RewardsCfg,
+)
+from .mdp import SLRPoseReward
+from .commands import RaceFlatOmniCommandCfg
 
 # 用户指定：初始释放高度与奖励目标分别设置。
 BASE_RELEASE_HEIGHT = 0.36
 BASE_RESET_Z_RANGE = (-0.01, 0.01)
-BASE_HEIGHT_TARGET = 0.335
+BASE_HEIGHT_TARGET = 0.38
+FLAT_BASE_HEIGHT_TARGET = 0.36
 STAND_ANGLES = (0.0, -0.12, 0.30)
 JOINT_KP = (30.0, 48.0, 51.0)
 JOINT_KD = (1.15, 1.20, 1.00)
 TORQUE_LIMITS = (22.0, 22.0, 33.0)
+
+# 快照来自 SLR-master/resources/race/poses/go2_link_direction.json。
+# 训练只依赖本仓库，不要求服务器另有一份 SLR 工程。
+SLR_STAND_ANGLES = json.loads(
+    (Path(ISAACLAB_ASSETS_DATA_DIR)
+     / "race/poses/slr_go2_link_direction.json").read_text(encoding="utf-8")
+)
+if (set(SLR_STAND_ANGLES) != set(JOINT_NAMES)
+        or not all(isfinite(v) for v in SLR_STAND_ANGLES.values())):
+    raise ValueError("SLR 站姿必须包含 Race 全部 12 个关节的有限角度")
 
 
 def joint_parameter(values):
@@ -152,8 +169,33 @@ class RaceEnvCfg(Go2EnvCfg):
 
 
 @configclass
+class RaceFlatRewardsCfg(RewardsCfg):
+    """保留原版十五项奖惩，新增 SLR 默认关节姿态正奖励。"""
+
+    pose = RewTerm(
+        func=SLRPoseReward,
+        weight=0.5,
+        params={
+            "command_name": "base_velocity",
+            "asset_cfg": SceneEntityCfg(
+                "robot", joint_names=list(JOINT_NAMES), preserve_order=True,
+            ),
+            "command_threshold": 0.05,
+            "standing_std": {
+                "roll_": 0.12, "pitch01_": 0.12, "pitch02_": 0.25,
+            },
+            "moving_std": {
+                "roll_": 0.30, "pitch01_": 0.30, "pitch02_": 0.60,
+            },
+        },
+    )
+
+
+@configclass
 class RaceFlatEnvCfg(RaceEnvCfg):
-    """用户指定的平地版本，仅把原地形集合换成原版 flat 子地形。"""
+    """平地实验：SLR 站姿、pose=0.5，全方向跟踪达标后扩速。"""
+
+    rewards: RaceFlatRewardsCfg = RaceFlatRewardsCfg()
 
     def __post_init__(self):
         super().__post_init__()
@@ -161,3 +203,21 @@ class RaceFlatEnvCfg(RaceEnvCfg):
         flat = deepcopy(generator.sub_terrains["flat"])
         flat.proportion = 1.0
         generator.sub_terrains = {"flat": flat}
+        self.scene.robot.init_state.joint_pos = deepcopy(SLR_STAND_ANGLES)
+        self.rewards.base_height_l2.params["target_height"] = (
+            FLAT_BASE_HEIGHT_TARGET
+        )
+        self.rewards.feet_regulation.params["base_height_target"] = (
+            FLAT_BASE_HEIGHT_TARGET
+        )
+        self.rewards.feet_regulation.weight = -0.2
+        self.commands.base_velocity = RaceFlatOmniCommandCfg()
+        ranges = self.commands.base_velocity.ranges
+        ranges.lin_vel_x = [-0.5, 0.5]
+        ranges.lin_vel_y = [-0.5, 0.5]
+        ranges.ang_vel_yaw = [-0.5, 0.5]
+        # 原版平地横移上限为1；用户要求此实验三轴均可扩到1.5。
+        self.commands.base_velocity.terrain_max_command_ranges["flat"] = {
+            name: [-1.5, 1.5] for name in
+            ("lin_vel_x", "lin_vel_y", "ang_vel_yaw")
+        }

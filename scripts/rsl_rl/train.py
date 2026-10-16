@@ -216,7 +216,12 @@ def main(env_cfg: ManagerBasedRLEnvCfg | DirectRLEnvCfg | DirectMARLEnvCfg, agen
     elif agent_cfg.class_name == "DistillationRunner":
         runner = DistillationRunner(env, agent_cfg_dict, log_dir=log_dir, device=agent_cfg.device)
     elif agent_cfg.class_name == "OnPolicyRunnerCTS":
-        runner = OnPolicyRunnerCTS(env, agent_cfg_dict, log_dir=log_dir, device=agent_cfg.device)
+        runner_type = OnPolicyRunnerCTS
+        if args_cli.task == "RobotLab-Race-Flat-v0":
+            from race_runner import RaceFlatOnPolicyRunnerCTS
+            runner_type = RaceFlatOnPolicyRunnerCTS
+        runner = runner_type(env, agent_cfg_dict, log_dir=log_dir,
+                             device=agent_cfg.device)
     else:
         raise ValueError(f"Unsupported runner class: {agent_cfg.class_name}")
     # write git state to logs
