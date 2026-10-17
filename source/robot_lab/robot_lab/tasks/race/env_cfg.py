@@ -6,7 +6,9 @@ from math import isfinite
 from pathlib import Path
 import xml.etree.ElementTree as ET
 
-from isaaclab.managers import RewardTermCfg as RewTerm, SceneEntityCfg
+from isaaclab.managers import (
+    EventTermCfg as EventTerm, RewardTermCfg as RewTerm, SceneEntityCfg,
+)
 from isaaclab.utils import configclass
 
 from robot_lab.assets import ISAACLAB_ASSETS_DATA_DIR
@@ -19,6 +21,7 @@ from robot_lab.tasks.go2.env_cfg import (
 )
 from .mdp import SLRPoseReward
 from .commands import RaceFlatOmniCommandCfg
+from .events import RaceAdditiveJointReset
 
 # 用户指定：初始释放高度与奖励目标分别设置。
 BASE_RELEASE_HEIGHT = 0.36
@@ -29,6 +32,24 @@ STAND_ANGLES = (0.0, -0.12, 0.30)
 JOINT_KP = (30.0, 48.0, 51.0)
 JOINT_KD = (1.15, 1.20, 1.00)
 TORQUE_LIMITS = (22.0, 22.0, 33.0)
+
+# 仅供当前复杂地形实验，平地仍使用独立的 SLR 姿态和原重置分布。
+ROUGH_STAND_ANGLES = {
+    f"{kind}_leg_{leg}_joint": value
+    for leg, angles in (
+        ("f_l", (0.10, 0.00, 0.10)),
+        ("f_r", (-0.10, 0.00, 0.10)),
+        ("b_l", (0.10, 0.20, 0.10)),
+        ("b_r", (-0.10, 0.20, 0.10)),
+    )
+    for kind, value in zip(("roll", "pitch01", "pitch02"), angles, strict=True)
+}
+ROUGH_RESET_HALF_WIDTHS = {
+    name: (0.0375 if name.startswith("roll_") else
+           0.5625 if name.startswith("pitch02_") else
+           0.3000 if "_leg_f_" in name else 0.3750)
+    for name in JOINT_NAMES
+}
 
 # 快照来自 SLR-master/resources/race/poses/go2_link_direction.json。
 # 训练只依赖本仓库，不要求服务器另有一份 SLR 工程。
@@ -130,7 +151,7 @@ class RaceEnvCfg(Go2EnvCfg):
             Path(RACE_CFG.spawn.usd_dir).with_name("usd_go2_training_single_box")
         )
         robot.spawn.usd_file_name = "race_go2.usd"
-        # 四腿采用相同的用户站姿，仍由原版动作项叠加动作偏移。
+        # 原对照配置使用统一站姿；当前复杂地形在子类单独覆盖。
         robot.init_state.joint_pos = joint_parameter(STAND_ANGLES)
         robot.init_state.pos = (*robot.init_state.pos[:2], BASE_RELEASE_HEIGHT)
         actuator = robot.actuators["GO2HV"]
@@ -166,6 +187,29 @@ class RaceEnvCfg(Go2EnvCfg):
         )
         # 相对地形原点在 0.35～0.37 m 释放，不叠加原版 0～0.2 m 扰动。
         self.events.reset_base.params["pose_range"]["z"] = BASE_RESET_Z_RANGE
+
+
+@configclass
+class RaceRoughEnvCfg(RaceEnvCfg):
+    """复杂地形：用户新站姿、独立加法重置、0.39～0.55 m 释放。"""
+
+    def __post_init__(self):
+        super().__post_init__()
+        self.scene.robot.init_state.joint_pos = deepcopy(ROUGH_STAND_ANGLES)
+        self.scene.robot.init_state.pos = (
+            *self.scene.robot.init_state.pos[:2], 0.39,
+        )
+        self.events.reset_base.params["pose_range"]["z"] = (0.0, 0.16)
+        self.events.reset_robot_joints = EventTerm(
+            func=RaceAdditiveJointReset,
+            mode="reset",
+            params={
+                "asset_cfg": SceneEntityCfg(
+                    "robot", joint_names=list(JOINT_NAMES), preserve_order=True,
+                ),
+                "offset_half_widths": deepcopy(ROUGH_RESET_HALF_WIDTHS),
+            },
+        )
 
 
 @configclass

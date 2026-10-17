@@ -4,7 +4,7 @@ import gymnasium as gym
 
 
 for task_id, environment_config, runner_config in (
-    ("RobotLab-Race-v0", "RaceEnvCfg", "RaceMoECTSRunnerCfg"),
+    ("RobotLab-Race-v0", "RaceRoughEnvCfg", "RaceMoECTSRunnerCfg"),
     ("RobotLab-Race-Flat-v0", "RaceFlatEnvCfg", "RaceFlatMoECTSRunnerCfg"),
 ):
     gym.register(
@@ -17,7 +17,7 @@ for task_id, environment_config, runner_config in (
         },
     )
 
-# 旧名字兼容：与默认任务使用相同的原版训练规则。
+# 原版对照入口保留旧站姿和缩放重置，便于核对本次复杂地形实验。
 gym.register(
     id="RobotLab-Race-Go2Reference-v0",
     entry_point="robot_lab.tasks.go2.env.go2_env:Go2Env",

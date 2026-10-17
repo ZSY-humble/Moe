@@ -1,4 +1,4 @@
-"""兼容旧的原版对照任务名称，统一使用当前 Race 默认配置。"""
+"""保留本次复杂地形加法重置之前的 Race 原版对照配置。"""
 
 from isaaclab.utils import configclass
 

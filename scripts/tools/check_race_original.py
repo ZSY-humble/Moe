@@ -1,4 +1,4 @@
-"""核对原 Go2 适配，以及用户指定的平地 SLR 姿态奖励实验。"""
+"""核对原 Go2 适配、复杂地形加法重置及平地 SLR 姿态奖励实验。"""
 
 import argparse
 from copy import deepcopy
@@ -120,7 +120,8 @@ def main():
 
     original = Go2EnvCfg()
     before = deepcopy(original.to_dict())
-    race = load_cfg_from_registry("RobotLab-Race-v0", "env_cfg_entry_point")
+    race = load_cfg_from_registry("RobotLab-Race-Go2Reference-v0", "env_cfg_entry_point")
+    rough = load_cfg_from_registry("RobotLab-Race-v0", "env_cfg_entry_point")
     flat = load_cfg_from_registry("RobotLab-Race-Flat-v0", "env_cfg_entry_point")
     assert not differences(before, original.to_dict()), "污染了原 Go2 配置"
     assert not differences(before, Go2EnvCfg().to_dict()), "污染了原 Go2 类默认值"
@@ -262,6 +263,8 @@ def main():
     assert not hasattr(race.rewards, "pose")
     from check_race_flat_curriculum import run_checks
     flat_command_checks = run_checks(flat)
+    from check_race_rough_reset import run_checks as check_rough_reset
+    rough_reset_checks = check_rough_reset(rough, race, flat)
 
     generator = race.scene.terrain.terrain_generator
     names = list(generator.sub_terrains)
@@ -338,6 +341,8 @@ def main():
 
     report = {
         "passed": True,
+        "reference_task": "RobotLab-Race-Go2Reference-v0",
+        "current_rough_task": "RobotLab-Race-v0",
         "upstream_commit": "28b4516d22617b11aeaf8ead63cc00b0c0bcd1bd",
         "unexpected_training_differences": unexpected,
         "runner_differences_except_log_name": runner_changes,
@@ -371,6 +376,7 @@ def main():
             "height_target_m": flat.rewards.base_height_l2.params["target_height"],
             "feet_regulation_weight": flat.rewards.feet_regulation.weight,
         },
+        "rough_reset_experiment": rough_reset_checks,
         "original_go2_unmodified_by_race": True,
         "default_num_envs": race.scene.num_envs,
         "episode_seconds": race.episode_length_s,
@@ -396,7 +402,7 @@ def main():
     }
     args.output.parent.mkdir(parents=True, exist_ok=True)
     args.output.write_text(json.dumps(report, ensure_ascii=False, indent=2))
-    print("[通过] 原 Go2 与复杂地形基线保留；平地 SLR pose 实验核验通过。")
+    print("[通过] 原版对照、复杂地形加法重置及平地 SLR 实验核验通过。")
     print(json.dumps(report, ensure_ascii=False, indent=2))
 
 
